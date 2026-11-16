@@ -139,6 +139,11 @@ var migrations = []string{
 	);
 	CREATE INDEX idx_alert_history_node ON alert_history(node_id, id);
 	`,
+	// Migration 6: durable identities for opt-in remote tmux terminals.
+	`CREATE TABLE terminal_recovery (
+ id TEXT PRIMARY KEY, node_id TEXT NOT NULL UNIQUE REFERENCES nodes(id) ON DELETE RESTRICT,
+ label TEXT NOT NULL, target TEXT NOT NULL, route_key TEXT NOT NULL, created_at INTEGER NOT NULL
+ );`,
 }
 
 type Store struct {

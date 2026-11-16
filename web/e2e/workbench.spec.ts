@@ -522,3 +522,97 @@ test("SFTP upload survives panel closure and cancelled or failed jobs retry", as
     fullPage: true,
   });
 });
+
+test("recovery UI guards endpoint changes and separates terminate from forgetting", async ({
+  page,
+  context,
+  app,
+}, info) => {
+  test.skip(info.project.name !== "desktop", "Desktop recovery management");
+  await loginAPI(context.request, app);
+  const host = await createHost(context.request, app, "Recovery entry");
+  const { DatabaseSync } = await import("node:sqlite");
+  const db = new DatabaseSync(app.db);
+  const id = "abcdef0123456789abcdef0123456789";
+  try {
+    db.exec("PRAGMA busy_timeout=5000");
+    db.prepare(
+      "INSERT INTO terminal_recovery(id,node_id,label,target,route_key,created_at) VALUES(?,?,?,?,?,?)",
+    ).run(
+      id,
+      host.id,
+      host.name,
+      "test@original-host:22",
+      "different-original-route",
+      Date.now(),
+    );
+  } finally {
+    db.close();
+  }
+  await page.goto(app.url);
+  await page.getByRole("button", { name: "会话库", exact: true }).click();
+  const card = page.getByRole("article", { name: "保活终端 Recovery entry" });
+  await expect(card).toContainText("待接入");
+  await card.getByRole("button", { name: "恢复终端", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText(
+    "主机地址、用户或跳板路径已变化",
+  );
+  await page.getByRole("button", { name: "关闭错误提示" }).click();
+  let terminationRequests = 0;
+  page.on("request", (req) => {
+    if (req.url().includes("/terminate")) terminationRequests++;
+  });
+  await card.getByRole("button", { name: "结束远端终端", exact: true }).click();
+  const confirm = page.getByRole("alertdialog", { name: "结束远端终端" });
+  await expect(confirm).toContainText("正在运行的任务可能中断");
+  expect(terminationRequests).toBe(0);
+  await confirm.getByRole("button", { name: "取消", exact: true }).click();
+  await card.getByText("手动接入命令", { exact: true }).click();
+  await page.screenshot({
+    path: info.outputPath("recovery-shelf.png"),
+    fullPage: true,
+    animations: "disabled",
+  });
+  await card.getByRole("button", { name: "忘记恢复记录", exact: true }).click();
+  const forget = page.getByRole("alertdialog", { name: "忘记恢复记录" });
+  await expect(forget).toContainText("不停止远端任务");
+  await forget
+    .getByRole("button", { name: "确认忘记恢复记录", exact: true })
+    .click();
+  await expect(card).toHaveCount(0);
+  expect(
+    (await (await context.request.get(app.url + "/api/recovery")).json())
+      .length,
+  ).toBe(0);
+  expect(terminationRequests).toBe(0);
+});
+
+test("missing tmux gives an actionable error without leaving a recovery record", async ({
+  page,
+  context,
+  app,
+}, info) => {
+  test.skip(
+    info.project.name !== "desktop",
+    "Desktop persistent connection setup",
+  );
+  await loginAPI(context.request, app);
+  await page.goto(app.url);
+  await page
+    .getByRole("button", { name: "新建主机", exact: true })
+    .first()
+    .click();
+  await page.getByLabel("名称（选填）").fill("Tmux unavailable");
+  await page.getByLabel("主机地址", { exact: true }).fill("127.0.0.1");
+  await page.getByLabel("端口", { exact: true }).fill(String(app.sshPort));
+  await page.getByLabel("登录用户").fill("test");
+  await page.getByLabel("密码", { exact: true }).fill("secret");
+  await page.getByRole("button", { name: /高级设置/ }).click();
+  await page.getByLabel("终端保活与恢复（tmux）").check();
+  await page.getByRole("button", { name: "保存并连接", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("远端未找到 tmux");
+  expect(
+    (await (await context.request.get(app.url + "/api/recovery")).json())
+      .length,
+  ).toBe(0);
+});

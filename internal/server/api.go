@@ -110,6 +110,8 @@ func (s *Server) handleCreateSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCloseSession(w http.ResponseWriter, r *http.Request) {
+	s.recoveryMu.Lock()
+	defer s.recoveryMu.Unlock()
 	id := session.ID(chi.URLParam(r, "id"))
 	if err := s.sessions.Close(id); err != nil {
 		writeError(w, http.StatusNotFound, err)

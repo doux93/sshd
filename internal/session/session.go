@@ -29,20 +29,22 @@ const (
 
 // Info is the read-only snapshot exposed to transports and APIs.
 type Info struct {
-	ID        ID        `json:"id"`
-	Label     string    `json:"label"`
-	Kind      string    `json:"kind"`
-	Target    string    `json:"target"`
-	State     State     `json:"state"`
-	Attached  int       `json:"attached"` // number of live client attachments
-	Cwd       string    `json:"cwd"`      // last directory reported via OSC 7
-	HasFiles  bool      `json:"hasFiles"` // backend supports SFTP
-	CreatedAt time.Time `json:"createdAt"`
+	RecoveryID string    `json:"recoveryId,omitempty"`
+	ID         ID        `json:"id"`
+	Label      string    `json:"label"`
+	Kind       string    `json:"kind"`
+	Target     string    `json:"target"`
+	State      State     `json:"state"`
+	Attached   int       `json:"attached"` // number of live client attachments
+	Cwd        string    `json:"cwd"`      // last directory reported via OSC 7
+	HasFiles   bool      `json:"hasFiles"` // backend supports SFTP
+	CreatedAt  time.Time `json:"createdAt"`
 }
 
 // Session owns one Backend connection and its terminal channel. It outlives
 // any transport attachment: closing a WebSocket does not close the session.
 type Session struct {
+	recoveryID  string
 	backendOnce sync.Once
 	closeOnce   sync.Once
 	closeErr    error
@@ -93,15 +95,16 @@ func (s *Session) Info() Info {
 	}
 	_, hasFiles := s.backend.(FileBackend)
 	return Info{
-		ID:        s.id,
-		Label:     s.label,
-		Kind:      s.backend.Kind(),
-		Target:    s.backend.Target(),
-		State:     s.state,
-		Attached:  attached,
-		Cwd:       cwd,
-		HasFiles:  hasFiles,
-		CreatedAt: s.createdAt,
+		ID:         s.id,
+		RecoveryID: s.recoveryID,
+		Label:      s.label,
+		Kind:       s.backend.Kind(),
+		Target:     s.backend.Target(),
+		State:      s.state,
+		Attached:   attached,
+		Cwd:        cwd,
+		HasFiles:   hasFiles,
+		CreatedAt:  s.createdAt,
 	}
 }
 

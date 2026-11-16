@@ -335,3 +335,99 @@ test("notification target filters history by host instead of treating it as a se
   assert.ok(!text(tree).includes("other-host"));
   act(() => tree.unmount());
 });
+
+test("recovering a disconnected persistent terminal uses only the resume API", async () => {
+  const f = fixture(),
+    { api } = f.load("src/api/client.ts"),
+    { useAppStore } = f.load("src/store.ts");
+  let resumes = 0;
+  api.connectNode = async () => {
+    throw Error("must not create another terminal");
+  };
+  api.resumeRecovery = async (id) => {
+    assert.equal(id, "recovery-a");
+    resumes++;
+    return { id: "resumed" };
+  };
+  api.listSessions = async () => [
+    { ...sessions[0], id: "resumed", recoveryId: "recovery-a" },
+  ];
+  api.listRecovery = async () => [
+    { id: "recovery-a", nodeId: "one", label: "first" },
+  ];
+  useAppStore.setState({
+    sessions: [{ ...sessions[0], state: "closed", recoveryId: "recovery-a" }],
+    recoveries: [{ id: "recovery-a", nodeId: "one" }],
+  });
+  await useAppStore.getState().reconnectClosedSession("a");
+  assert.equal(resumes, 1);
+  assert.equal(useAppStore.getState().activeId, "resumed");
+});
+
+test("recovery missing errors do not fall back to creating a replacement", async () => {
+  const f = fixture(),
+    { api, ApiError } = f.load("src/api/client.ts"),
+    { useAppStore } = f.load("src/store.ts");
+  api.resumeRecovery = async () => {
+    throw new ApiError(410, "original terminal missing");
+  };
+  let creates = 0;
+  api.connectNode = async () => {
+    creates++;
+  };
+  useAppStore.setState({ recoveries: [{ id: "r", nodeId: "one" }] });
+  await useAppStore.getState().recoverTerminal("r", "resume");
+  assert.equal(creates, 0);
+  assert.match(useAppStore.getState().error, /original terminal missing/);
+  assert.equal(useAppStore.getState().connecting, false);
+});
+
+test("persistent disconnect is separate from explicitly confirmed remote termination", async () => {
+  const f = fixture(),
+    { api } = f.load("src/api/client.ts"),
+    { useAppStore } = f.load("src/store.ts");
+  let disconnects = 0,
+    terminations = 0;
+  const row = {
+    id: "r",
+    nodeId: "one",
+    label: "first",
+    target: "u@one",
+    liveSessionId: "a",
+  };
+  api.closeSession = async () => {
+    disconnects++;
+  };
+  api.terminateRecovery = async () => {
+    terminations++;
+  };
+  api.listSessions = async () => [];
+  api.listRecovery = async () => [{ ...row, liveSessionId: undefined }];
+  useAppStore.setState({
+    sessions: [{ ...sessions[0], recoveryId: "r" }],
+    recoveries: [row],
+    openIds: ["a"],
+  });
+  const { SessionShelf } = f.load("src/workspace/SessionShelf.tsx");
+  let tree;
+  act(() => {
+    tree = create(React.createElement(SessionShelf, { onClose() {} }));
+  });
+  act(() => button(tree, "断开并保留").props.onClick());
+  assert.equal(disconnects, 0);
+  assert.equal(terminations, 0);
+  await act(async () =>
+    tree.root
+      .findByProps({ role: "alertdialog" })
+      .findAllByType("button")
+      .at(-1)
+      .props.onClick(),
+  );
+  assert.equal(disconnects, 1);
+  assert.equal(terminations, 0);
+  act(() => button(tree, "结束远端终端").props.onClick());
+  assert.equal(terminations, 0);
+  await act(async () => button(tree, "确认结束远端终端").props.onClick());
+  assert.equal(terminations, 1);
+  act(() => tree.unmount());
+});

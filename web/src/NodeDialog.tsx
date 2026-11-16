@@ -37,6 +37,7 @@ export function NodeDialog() {
     [password, setPassword] = useState(""),
     [keyPath, setKeyPath] = useState(""),
     [passphrase, setPassphrase] = useState("");
+  const [persistentTerminal, setPersistentTerminal] = useState(false);
   const [jumpNodeId, setJumpNodeId] = useState(""),
     [proxy, setProxy] = useState(""),
     [monitor, setMonitor] = useState(false),
@@ -65,6 +66,7 @@ export function NodeDialog() {
     setKeyPath(c?.keyPath ?? "");
     setJumpNodeId(c?.jumpNodeId ?? "");
     setProxy(c?.proxy ?? "");
+    setPersistentTerminal(c?.persistentTerminal ?? false);
     setMonitor(c?.monitor?.enabled ?? false);
     setInterval(String(c?.monitor?.interval ?? 5));
     setPolicy(c?.aiPolicy ?? "readonly");
@@ -99,6 +101,7 @@ export function NodeDialog() {
             jumpNodeId,
             proxy: proxy.trim() || undefined,
             aiPolicy: policy,
+            persistentTerminal,
             monitor: { enabled: monitor, interval: Number(interval) },
             alerts: rules,
           },
@@ -328,6 +331,19 @@ export function NodeDialog() {
               </button>
               {advanced && (
                 <div className="space-y-4 rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+                  <label className="flex gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={persistentTerminal}
+                      onChange={(e) => setPersistentTerminal(e.target.checked)}
+                    />
+                    终端保活与恢复（tmux）
+                  </label>
+                  <p className="text-xs leading-5 text-slate-400">
+                    每台主机一个保活终端。远端需预装
+                    tmux；工作台重启后从会话库恢复，远端主机重启后不能恢复。开启后不会注入
+                    Shell 目录跟随脚本。
+                  </p>
                   <Field label="跳板机">
                     <select
                       className={input}

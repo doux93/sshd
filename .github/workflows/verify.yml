@@ -40,11 +40,13 @@ jobs:
           npm --prefix web run build
       - name: Install OpenSSH SFTP integration server
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y openssh-sftp-server
+        run: sudo apt-get update && sudo apt-get install -y openssh-sftp-server openssh-server tmux && sudo mkdir -p /run/sshd
       - name: Go static checks
         run: go vet ./...
       - name: Linux tests with race detector
         if: runner.os == 'Linux'
+        env:
+          SSHX_REQUIRE_TMUX_TEST: '1'
         run: go test -race -count=1 ./...
       - name: Windows native tests and Credential Manager
         if: runner.os == 'Windows'

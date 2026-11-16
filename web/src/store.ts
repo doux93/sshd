@@ -7,6 +7,7 @@ import {
   type HostKeyInfo,
   type NodeInfo,
   type SessionInfo,
+  type RecoveryInfo,
   type AlertRecord,
 } from "./api/client";
 
@@ -54,6 +55,8 @@ export interface HostKeyPrompt {
 }
 
 interface AppState {
+  recoveries: RecoveryInfo[];
+  recoverTerminal(id: string, action: "resume" | "terminate"): Promise<void>;
   sessions: SessionInfo[];
   openIds: string[];
   favorites: string[];
@@ -91,6 +94,7 @@ interface AppState {
 
 export const useAppStore = create<AppState>((set, get) => ({
   sessions: [],
+  recoveries: [],
   openIds: initialViews,
   favorites: stringList(readPreference("favorites", [])),
   recent,
@@ -169,7 +173,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   refresh: async () => {
     const generation = ++sessionRefresh;
-    const sessions = await api.listSessions();
+    const [sessions, recoveries] = await Promise.all([
+      api.listSessions(),
+      api.listRecovery(),
+    ]);
     if (generation !== sessionRefresh) return;
     const { activeId, openIds } = get();
     const ids = viewsInitialized
@@ -183,7 +190,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       sessions.map((s) => s.id),
     );
     saveViews(next.openIds, next.activeId);
-    set({ sessions, ...next });
+    set({ sessions, recoveries, ...next });
   },
 
   refreshNodes: async () => {
@@ -230,6 +237,56 @@ export const useAppStore = create<AppState>((set, get) => ({
           connecting: false,
           connectingNodeId: null,
         });
+        await get()
+          .refresh()
+          .catch(() => {});
+      }
+    };
+    await attempt({});
+  },
+
+  recoverTerminal: async (id, action) => {
+    if (get().connecting) return;
+    const rec = get().recoveries.find((r) => r.id === id);
+    set({
+      connecting: true,
+      connectingNodeId: rec?.nodeId ?? null,
+      error: null,
+    });
+    const attempt = async (accepts: Record<string, string>): Promise<void> => {
+      set({ connecting: true });
+      try {
+        const result =
+          action === "resume"
+            ? await api.resumeRecovery(id, accepts)
+            : await api.terminateRecovery(id, accepts);
+        await get().refresh();
+        if (result) get().setActive(result.id);
+        set({ hostKeyPrompt: null, connecting: false, connectingNodeId: null });
+      } catch (error) {
+        if (
+          error instanceof ApiError &&
+          error.status === 409 &&
+          error.hostKey
+        ) {
+          set({
+            hostKeyPrompt: {
+              hostKey: error.hostKey,
+              accepts,
+              retry: attempt,
+              actionLabel:
+                action === "resume" ? "信任并恢复" : "信任并结束远端终端",
+            },
+            connecting: false,
+            connectingNodeId: null,
+          });
+        } else
+          set({
+            error: connectionError(error),
+            hostKeyPrompt: null,
+            connecting: false,
+            connectingNodeId: null,
+          });
       }
     };
     await attempt({});
@@ -241,6 +298,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   reconnectClosedSession: async (id) => {
     const s = get().sessions.find((x) => x.id === id);
     if (!s || !s.nodeId) return;
-    await get().connectNode(s.nodeId);
+    if (s.recoveryId) await get().recoverTerminal(s.recoveryId, "resume");
+    else await get().connectNode(s.nodeId);
   },
 }));

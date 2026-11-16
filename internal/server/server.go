@@ -27,6 +27,7 @@ import (
 )
 
 type Server struct {
+	recoveryMu sync.Mutex
 	loginLimit loginLimiter
 	nodeMu     sync.Mutex
 	socketMu   sync.Mutex
@@ -266,6 +267,10 @@ func (s *Server) Handler() http.Handler {
 		r.Post("/sessions", s.handleCreateSession)
 		r.Delete("/sessions/{id}", s.handleCloseSession)
 
+		r.Get("/recovery", s.handleListRecovery)
+		r.Post("/recovery/{id}/resume", s.handleResumeRecovery)
+		r.Post("/recovery/{id}/terminate", s.handleTerminateRecovery)
+		r.Delete("/recovery/{id}", s.handleForgetRecovery)
 		r.Get("/nodes", s.handleListNodes)
 		r.Post("/connections/test", s.handleTestConnection)
 		r.Get("/alerts", s.handleListAlerts)

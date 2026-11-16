@@ -364,6 +364,10 @@ func (c *Client) Close() error {
 
 // OpenTerminal starts an interactive shell with a PTY.
 func (c *Client) OpenTerminal(cols, rows int) (session.TerminalIO, error) {
+	return c.openTerminal(cols, rows, "")
+}
+
+func (c *Client) openTerminal(cols, rows int, command string) (session.TerminalIO, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	sess, err := c.newSession(ctx)
@@ -393,7 +397,13 @@ func (c *Client) OpenTerminal(cols, rows int) (session.TerminalIO, error) {
 		sess.Close()
 		return nil, err
 	}
-	if err := sess.Shell(); err != nil {
+	var startErr error
+	if command == "" {
+		startErr = sess.Shell()
+	} else {
+		startErr = sess.Start(command)
+	}
+	if err := startErr; err != nil {
 		sess.Close()
 		return nil, fmt.Errorf("start shell: %w", err)
 	}

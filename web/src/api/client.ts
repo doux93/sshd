@@ -57,7 +57,17 @@ export function getToken(): string {
   return sessionStorage.getItem(TOKEN_KEY) ?? "";
 }
 
+export interface RecoveryInfo {
+  id: string;
+  nodeId: string;
+  label: string;
+  target: string;
+  createdAt: string;
+  liveSessionId?: string;
+}
+
 export interface SessionInfo {
+  recoveryId?: string;
   id: string;
   label: string;
   kind: string;
@@ -102,6 +112,7 @@ export interface AlertRule {
 }
 
 export interface ConnConfig {
+  persistentTerminal?: boolean;
   host?: string;
   port?: number;
   user?: string;
@@ -232,6 +243,22 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   // sessions
+  listRecovery: () => request<RecoveryInfo[]>("/api/recovery"),
+  resumeRecovery: (id: string, accepts: Record<string, string>) =>
+    request<SessionInfo>(`/api/recovery/${id}/resume`, {
+      method: "POST",
+      body: JSON.stringify({ accepts }),
+    }),
+  terminateRecovery: (id: string, accepts: Record<string, string>) =>
+    request<void>(`/api/recovery/${id}/terminate`, {
+      method: "POST",
+      body: JSON.stringify({ accepts, confirmed: true }),
+    }),
+  forgetRecovery: (id: string) =>
+    request<void>(`/api/recovery/${id}`, {
+      method: "DELETE",
+      body: JSON.stringify({ confirmed: true }),
+    }),
   listSessions: () => request<SessionInfo[]>("/api/sessions"),
   createSession: (req: CreateSessionRequest) =>
     request<SessionInfo>("/api/sessions", {

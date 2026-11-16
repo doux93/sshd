@@ -359,6 +359,7 @@ export default function App() {
                 <div className="flex h-9 shrink-0 items-center gap-3 border-b border-slate-800/70 px-4 text-xs">
                   <span className="truncate font-mono text-slate-400">
                     {active.target}
+                    {active.recoveryId ? " · tmux 保活" : ""}
                   </span>
                   <span className="truncate text-slate-600">{active.cwd}</span>
                   {active.state === "active" && active.nodeId && (
@@ -368,7 +369,9 @@ export default function App() {
                   )}
                   {active.state === "closed" && (
                     <span className="ml-auto text-amber-300">
-                      会话已结束
+                      {active.recoveryId
+                        ? "连接已断开 · 远端可尝试恢复"
+                        : "会话已结束"}
                       {active.nodeId && (
                         <button
                           className="ml-3 underline"
@@ -410,7 +413,12 @@ export default function App() {
                 <div className="w-full max-w-lg rounded-xl border border-slate-800 bg-slate-900/50 p-6">
                   <Icon name={focus ? "server" : "terminal"} size={30} />
                   <h1 className="mt-3 text-xl font-semibold">
-                    {focus?.name ?? "从一台主机开始"}
+                    {focus?.name ??
+                      (st.recoveries.length
+                        ? "继续远端工作"
+                        : st.nodes.some((n) => n.kind === "connection")
+                          ? "选择一台主机"
+                          : "从一台主机开始")}
                   </h1>
                   <p className="mt-3 text-sm leading-7 text-slate-400">
                     {focus
@@ -441,14 +449,18 @@ export default function App() {
                         className="button-primary"
                         onClick={() => st.setEditingNode({ parentId: "" })}
                       >
-                        新建第一台主机
+                        {st.nodes.some((n) => n.kind === "connection")
+                          ? "新建主机"
+                          : "新建第一台主机"}
                       </button>
                     )}
                     <button
                       className="button-secondary"
                       onClick={() => setPanel("sessions")}
                     >
-                      打开会话库
+                      {st.recoveries.length
+                        ? `恢复已有终端（${st.recoveries.length}）`
+                        : "打开会话库"}
                     </button>
                   </div>
                   {background > 0 && (

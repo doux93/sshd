@@ -8,7 +8,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"sshx/internal/alert"
 	"sshx/internal/connect"
 	"sshx/internal/session"
 	"sshx/internal/sshconfig"
@@ -169,7 +168,11 @@ func (s *Server) handleDeleteNode(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	ids, err := s.store.DeleteSubtree(id)
 	if err != nil {
-		writeError(w, http.StatusNotFound, err)
+		if errors.Is(err, store.ErrRecoveryExists) {
+			writeError(w, 409, err)
+		} else {
+			writeError(w, http.StatusNotFound, err)
+		}
 		return
 	}
 	for _, nid := range ids {
@@ -196,40 +199,35 @@ func (s *Server) handleConnectNode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.recoveryMu.Lock()
+	defer s.recoveryMu.Unlock()
+	s.nodeMu.Lock()
+	defer s.nodeMu.Unlock()
+	node, err := s.store.GetNode(id)
+	if err != nil {
+		writeError(w, 404, err)
+		return
+	}
+	if node.Config.PersistentTerminal {
+		rec, err := s.store.RecoveryByNode(id)
+		if err != nil && !errors.Is(err, store.ErrRecoveryNotFound) {
+			writeError(w, 500, err)
+			return
+		}
+		s.openPersistent(w, r, node, rec, req)
+		return
+	}
 	client, node, err := s.connect.DialNode(r.Context(), id, req.Accepts)
 	if err != nil {
 		writeDialError(w, err)
 		return
 	}
-	sess, err := s.sessions.Create(client, session.Options{
-		Label: node.Name,
-		Cols:  req.Cols,
-		Rows:  req.Rows,
-		// Saved-node connects always install the OSC 7 cwd hook so the
-		// file panel follows `cd`. Quick-connect still honours the
-		// request-level opt-out (ShellIntegration: false).
-		// A per-node toggle in ConnConfig is the long-term fix; for now
-		// the saved-node path is always-on.
-		ShellIntegration: true,
-	})
+	sess, err := s.sessions.Create(client, session.Options{Label: node.Name, Cols: req.Cols, Rows: req.Rows, ShellIntegration: true})
 	if err != nil {
-		writeError(w, http.StatusBadGateway, err)
+		writeError(w, 502, err)
 		return
 	}
-
-	// Start monitoring if the node has it enabled.
-	if s.monitor != nil {
-		rules := make([]alert.Rule, len(node.Config.Alerts))
-		for i, r := range node.Config.Alerts {
-			rules[i] = alert.Rule{
-				Metric: r.Metric, Op: r.Op,
-				Threshold: r.Threshold, Duration: r.Duration,
-			}
-		}
-		s.monitor.StartCollector(sess, node.ID, node.Config.Monitor, rules)
-	}
-	s.getMonitorRegistry().Link(sess.ID(), node.ID)
-
+	s.linkNodeSession(sess, node)
 	writeJSON(w, http.StatusCreated, sess.Info())
 }
 

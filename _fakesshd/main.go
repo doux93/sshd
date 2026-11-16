@@ -140,7 +140,12 @@ func serve(c net.Conn, cfg *ssh.ServerConfig, root string) {
 						if int(4+n) <= len(req.Payload) {
 							cmd := string(req.Payload[4 : 4+n])
 							req.Reply(true, nil)
-							fmt.Fprintf(ch, "exec:%s\n", cmd)
+							if strings.Contains(cmd, "command -v tmux") {
+								ch.SendRequest("exit-status", false, ssh.Marshal(struct{ Code uint32 }{127}))
+							} else {
+								fmt.Fprintf(ch, "exec:%s\n", cmd)
+								ch.SendRequest("exit-status", false, ssh.Marshal(struct{ Code uint32 }{0}))
+							}
 							ch.Close()
 							continue
 						}

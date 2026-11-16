@@ -21,10 +21,11 @@ type EventListener func(Event)
 
 // Options tunes session creation.
 type Options struct {
-	Label    string
-	Cols     int
-	Rows     int
-	RingSize int // replay buffer capacity in bytes; 0 = default
+	RecoveryID string
+	Label      string
+	Cols       int
+	Rows       int
+	RingSize   int // replay buffer capacity in bytes; 0 = default
 	// ShellIntegration installs the OSC 7 cwd hook in the remote shell so
 	// the file panel follows `cd`. Off by default: it writes a visible
 	// command into the user's terminal.
@@ -84,11 +85,12 @@ func (m *Manager) Create(backend Backend, opts Options) (*Session, error) {
 	}
 
 	s := &Session{
-		id:        newID(),
-		label:     opts.Label,
-		backend:   backend,
-		state:     StateActive,
-		createdAt: time.Now(),
+		id:         newID(),
+		recoveryID: opts.RecoveryID,
+		label:      opts.Label,
+		backend:    backend,
+		state:      StateActive,
+		createdAt:  time.Now(),
 	}
 	if s.label == "" {
 		s.label = backend.Target()
@@ -109,7 +111,7 @@ func (m *Manager) Create(backend Backend, opts Options) (*Session, error) {
 	m.mu.Unlock()
 	m.emit(Event{SessionID: s.id, Type: "created"})
 	go s.term.readPump()
-	if opts.ShellIntegration {
+	if opts.ShellIntegration && opts.RecoveryID == "" {
 		s.term.Write([]byte(ShellIntegration()))
 	}
 	return s, nil

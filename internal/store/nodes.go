@@ -13,14 +13,15 @@ import (
 // ConnConfig is the connection-node payload. Secrets are NOT here — only
 // presence flags so the UI knows whether a password/passphrase is on file.
 type ConnConfig struct {
-	Host          string `json:"host,omitempty"`
-	Port          int    `json:"port,omitempty"`
-	User          string `json:"user,omitempty"`
-	AuthType      string `json:"authType,omitempty"` // "password" | "key" | "agent"
-	KeyPath       string `json:"keyPath,omitempty"`
-	JumpNodeID    string `json:"jumpNodeId,omitempty"` // another connection node used as bastion
-	HasPassword   bool   `json:"hasPassword,omitempty"`
-	HasPassphrase bool   `json:"hasPassphrase,omitempty"`
+	PersistentTerminal bool   `json:"persistentTerminal,omitempty"`
+	Host               string `json:"host,omitempty"`
+	Port               int    `json:"port,omitempty"`
+	User               string `json:"user,omitempty"`
+	AuthType           string `json:"authType,omitempty"` // "password" | "key" | "agent"
+	KeyPath            string `json:"keyPath,omitempty"`
+	JumpNodeID         string `json:"jumpNodeId,omitempty"` // another connection node used as bastion
+	HasPassword        bool   `json:"hasPassword,omitempty"`
+	HasPassphrase      bool   `json:"hasPassphrase,omitempty"`
 	// AIPolicy controls what AI tools may do on this host:
 	//   "readonly" - only read-only whitelisted commands (default)
 	//   "confirm"  - write operations pause for human confirmation
@@ -174,6 +175,13 @@ func (s *Store) DeleteSubtree(id string) ([]string, error) {
 	}
 	defer tx.Rollback()
 	for _, nid := range ids {
+		var count int
+		if err := tx.QueryRow(`SELECT count(*) FROM terminal_recovery WHERE node_id=?`, nid).Scan(&count); err != nil {
+			return nil, err
+		}
+		if count > 0 {
+			return nil, ErrRecoveryExists
+		}
 		if _, err := tx.Exec(`DELETE FROM nodes WHERE id=?`, nid); err != nil {
 			return nil, err
 		}

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api } from "../api/client";
 import { useAppStore } from "../store";
+import { RecoveryList } from "./RecoveryList";
 import { Icon } from "../components/Icon";
 export function SessionShelf({ onClose }: { onClose: () => void }) {
   const {
@@ -63,7 +64,9 @@ export function SessionShelf({ onClose }: { onClose: () => void }) {
                 <strong className="truncate text-sm">{s.label}</strong>
                 <span className="ml-auto text-xs text-slate-400">
                   {s.state === "closed"
-                    ? "已结束"
+                    ? s.recoveryId
+                      ? "连接已断开"
+                      : "已结束"
                     : openIds.includes(s.id)
                       ? "已打开"
                       : "后台运行"}
@@ -94,12 +97,17 @@ export function SessionShelf({ onClose }: { onClose: () => void }) {
                   className="ml-auto text-xs text-rose-300"
                   onClick={() => setEnding(s.id)}
                 >
-                  {s.state === "active" ? "结束会话" : "移除记录"}
+                  {s.recoveryId && s.state === "active"
+                    ? "断开并保留"
+                    : s.state === "active"
+                      ? "结束会话"
+                      : "移除记录"}
                 </button>
               </div>
             </article>
           ))
         )}
+        <RecoveryList onOpen={onClose} />
       </div>
       {target && (
         <div className="dialog-backdrop">
@@ -111,7 +119,9 @@ export function SessionShelf({ onClose }: { onClose: () => void }) {
           >
             <h2 id="end-title" className="text-lg font-semibold">
               {target.state === "active"
-                ? "结束 SSH 会话？"
+                ? target.recoveryId
+                  ? "断开并保留远端终端？"
+                  : "结束 SSH 会话？"
                 : "移除已结束的会话？"}
             </h2>
             <p className="mt-3 text-sm leading-6 text-slate-300">
@@ -119,7 +129,9 @@ export function SessionShelf({ onClose }: { onClose: () => void }) {
             </p>
             <p className="mt-2 text-sm text-slate-400">
               {target.state === "active"
-                ? "所有设备与此会话的连接将结束，依赖该终端的远端任务可能中断。只想收起窗口时，请关闭标签。"
+                ? target.recoveryId
+                  ? "断开工作台到主机的连接，远端 tmux 任务继续运行。稍后可从会话库恢复；工作台监控在断开期间暂停。"
+                  : "所有设备与此会话的连接将结束，依赖该终端的远端任务可能中断。只想收起窗口时，请关闭标签。"
                 : "该会话的终端输出将从工作台移除。保存的主机配置仍然保留。"}
             </p>
             <div className="mt-5 flex justify-end gap-2">
@@ -134,7 +146,9 @@ export function SessionShelf({ onClose }: { onClose: () => void }) {
                 {busy
                   ? "处理中…"
                   : target.state === "active"
-                    ? "结束会话"
+                    ? target.recoveryId
+                      ? "断开并保留"
+                      : "结束会话"
                     : "移除记录"}
               </button>
             </div>
