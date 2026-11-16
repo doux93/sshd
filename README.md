@@ -2,7 +2,7 @@
 
 面向个人的 SSH 工作台：Go 服务端保持会话，React + xterm.js 提供浏览器终端，配套 SFTP、监控、告警和 AI 工具。
 
-0.3.0 新增可选的远端 tmux 终端恢复，工作台重启后可重新接入原进程。明暗主题、双终端分屏、常用命令和上传队列继续保留。保留会话管理、移动只读、告警、AI 助手与既有安全修复。变化见 [修订记录](docs/CHANGELOG.md)，使用说明见 [产品体验更新](docs/PRODUCT_UPDATE.md)。
+0.3.1 修复 Ubuntu 22.04 / tmux 3.2a 的历史回放干扰命令输入问题，并增加 Windows 连接 Ubuntu 22.04、24.04 的跨系统验收。可选的远端 tmux 终端恢复支持工作台重启后重新接入原进程；保留明暗主题、双终端分屏、常用命令、上传队列、移动只读、告警和 AI 助手。变化见 [修订记录](docs/CHANGELOG.md)，使用说明见 [产品体验更新](docs/PRODUCT_UPDATE.md)。
 
 [下载 Windows / Linux 版本](https://github.com/doux93/sshd/releases/latest) · [快速开始](docs/QUICKSTART.md)
 

@@ -1,4 +1,4 @@
-// Runs the actual published Windows executable. The Linux endpoint is an
+// Runs the Windows executable from a verified artifact or published release. The Linux endpoint is an
 // isolated WSL2 Ubuntu OpenSSH server, with its own temporary user and keys.
 // It does not connect to user infrastructure or use real user credentials.
 const assert = require('node:assert/strict');

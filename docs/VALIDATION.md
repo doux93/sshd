@@ -2,7 +2,7 @@
 
 本机环境：Linux amd64、Go 1.26.3、Node.js 24.22.1、npm 11.9.0。
 
-GitHub Actions：Ubuntu 与 Windows amd64，Go 1.26.3、Node.js 24。正式版代码提交 `16d60d26cb0eca96e3b218917b93f2190c756279` 的 [v0.3.0 完整验收与发布](https://github.com/doux93/sshd/actions/runs/43855180100) 三个任务全部成功。发布后未改动应用运行代码；后续补充独立的 Windows→Linux 发布包验收流程、结果与界面截图。
+GitHub Actions：Ubuntu 与 Windows amd64，Go 1.26.3、Node.js 24。正式版代码提交 `16d60d26cb0eca96e3b218917b93f2190c756279` 的 [v0.3.0 完整验收与发布](https://github.com/doux93/sshd/actions/runs/43855180100) 三个任务全部成功。以上为 v0.3.0 的原发布记录；后续 Ubuntu 22.04 补测发现回放兼容问题，修复后的 [0.3.1 开发包](https://github.com/doux93/sshd/actions/runs/43862729364)在 Ubuntu 22.04、24.04 均通过全部 10 个验收阶段，正式包结果待补充。
 
 固定下载：[sshx v0.3.0](https://github.com/doux93/sshd/releases/tag/v0.3.0)。已验证两个 ZIP 可完整解压，只包含程序、快速开始、VERSION 和 BUILD.txt；校验文件、打包产物与 GitHub Release 公布的 SHA-256 一致。Linux 包实际运行 `--version` 输出 0.3.0 及上述提交；Windows 原生版本与本地启动在 CI 验证。
 
@@ -26,7 +26,7 @@ GitHub Actions：Ubuntu 与 Windows amd64，Go 1.26.3、Node.js 24。正式版�
 
 `sshx/web` 与 `internal/testssh` 包没有 Go 测试文件，因此 Go JSON 日志中出现该包的 `skip` 状态；这不是集成测试被跳过。前端协议测试通过 npm 单独运行。
 
-## Windows 原生客户端 → Linux 服务端发布包实测
+## v0.3.0 Windows → Ubuntu 24.04 历史验收
 
 [独立验收运行](https://github.com/doux93/sshd/actions/runs/43858021729) 已成功，执行的是下载并校验后的 **v0.3.0 Windows 发布包**，程序版本与提交为 `sshx 0.3.0 (16d60d26cb0eca96e3b218917b93f2190c756279)`。测试流程提交为 `cca64e3312a009c1765a99d7c5729de7011496fb`。
 
@@ -38,7 +38,7 @@ GitHub Actions：Ubuntu 与 Windows amd64，Go 1.26.3、Node.js 24。正式版�
 
 [完整结果 JSON](evidence/windows-linux-v0.3.0.json) · [真实界面截图](images/windows-linux-recovery.png) · [验收范围与复现](WINDOWS_LINUX_ACCEPTANCE.md)
 
-这次验收没有发现需要修改应用运行代码的问题。受控的 Windows Server + WSL2 环境不等同于用户 Windows 10/11 真机或远端物理服务器，也没有覆盖用户实际 VPN、跳板、网络延迟和安全软件。
+这次 Ubuntu 24.04 验收未发现问题；后续 Ubuntu 22.04 / tmux 3.2a 验收发现历史回放触发迟到的设备属性响应，污染首条命令。受控的 Windows Server + WSL2 环境不等同于用户 Windows 10/11 真机或远端物理服务器，也没有覆盖用户实际 VPN、跳板、网络延迟和安全软件。
 
 ## 0.3.0 终端恢复验收
 

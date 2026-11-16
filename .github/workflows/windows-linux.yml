@@ -9,7 +9,7 @@ on:
     inputs:
       release_tag:
         description: Published release to test
-        default: v0.3.0
+        default: v0.3.1
         required: true
 
 permissions:
@@ -27,7 +27,7 @@ jobs:
       matrix:
         ubuntu: ['Ubuntu-22.04', 'Ubuntu-24.04']
     env:
-      RELEASE_TAG: ${{ inputs.release_tag || 'v0.3.0' }}
+      RELEASE_TAG: ${{ inputs.release_tag || 'v0.3.1' }}
       WSL_DISTRO: ${{ matrix.ubuntu }}
       PACKAGE_SOURCE: ${{ github.event_name == 'workflow_run' && 'verified workflow artifact' || 'published release' }}
     steps:
