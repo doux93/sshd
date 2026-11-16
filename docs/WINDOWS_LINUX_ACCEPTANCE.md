@@ -9,7 +9,7 @@
 ## 环境与范围
 
 - 客户端：GitHub 托管 Windows Server 2025，原生 `sshx.exe`、Windows Credential Manager 和 Chromium。
-- 服务器：同一验收虚拟机内的 WSL2 Ubuntu 24.04，运行真实 OpenSSH、internal-sftp 和 tmux。
+- 服务器：分别在独立测试机内安装 WSL2 Ubuntu 22.04、24.04，运行真实 OpenSSH、internal-sftp 和 tmux。脚本读取 `/etc/os-release` 校验实际发行版，并记录 OpenSSH/tmux 版本。
 - 数据：随机临时 Linux 用户、密码、密钥、独立数据库和测试文件，退出时清理；不使用用户服务器或凭据。
 - 网络中断：关闭仅转发本次 SSH 流量的 TCP 连接，重新连接后检查原进程；不修改宿主机网络配置。
 
@@ -27,7 +27,7 @@
 8. 浏览器能找回恢复后的终端，并保存实际界面截图。
 9. 结束远端终端需要显式确认，确认后实际 tmux 会话消失；删除测试主机与文件。
 
-结果见工作流的 `results.json` 和 `windows-linux-recovery.png` 附件。只有 `success: true` 才代表完整检查通过；失败时保留此前通过的项目及失败原因。实际运行结论另记入 [验证记录](VALIDATION.md)。
+两个 Ubuntu 版本分别运行，不因其中一个失败而跳过另一个。结果见各自 `windows-linux-acceptance-Ubuntu-22.04` / `windows-linux-acceptance-Ubuntu-24.04` 附件中的 `results.json` 和 `windows-linux-recovery.png`。只有 `success: true` 才代表完整检查通过；失败时保留此前通过的项目及失败原因。实际运行结论另记入 [验证记录](VALIDATION.md)。
 
 ## 复现
 

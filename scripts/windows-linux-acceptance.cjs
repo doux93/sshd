@@ -13,6 +13,8 @@ const { chromium, expect } = require('../web/node_modules/@playwright/test');
 
 assert.equal(process.platform, 'win32', 'This acceptance must run natively on Windows');
 assert.equal(process.env.GITHUB_ACTIONS, 'true', 'Disposable GitHub runner required; do not run this fixture against a personal WSL distribution');
+const distribution = process.env.WSL_DISTRO || 'Ubuntu-24.04';
+assert.ok(['Ubuntu-22.04', 'Ubuntu-24.04'].includes(distribution), 'Unsupported acceptance distribution');
 const root = resolve(__dirname, '..');
 const output = join(root, 'acceptance-results');
 fs.mkdirSync(output, { recursive: true });
@@ -22,7 +24,7 @@ const user = 'sx_' + runID;
 const remote = '/tmp/sshx-acceptance-' + runID;
 const password = randomBytes(24).toString('hex');
 const envValue = 'keep_' + runID;
-const evidence = { release: process.env.RELEASE_TAG || 'v0.3.0', scope: 'Native Windows executable -> WSL2 Ubuntu OpenSSH/tmux', checks: [], success: false };
+const evidence = { release: process.env.RELEASE_TAG || 'v0.3.0', distribution, scope: 'Native Windows executable -> WSL2 Ubuntu OpenSSH/tmux', checks: [], success: false };
 const wsClients = new Set();
 const proxySockets = new Set();
 let app, url, browser, proxy, fixtureStarted = false;
@@ -39,7 +41,7 @@ function check(name, details) {
   console.log('PASS: ' + name);
 }
 function wsl(args, options = {}) {
-  return spawnSync('C:\\Windows\\System32\\wsl.exe', ['-d', 'Ubuntu-24.04', '-u', 'root', '--', ...args], { encoding: 'utf8', timeout: 30000, ...options });
+  return spawnSync('C:\\Windows\\System32\\wsl.exe', ['-d', distribution, '-u', 'root', '--', ...args], { encoding: 'utf8', timeout: 30000, ...options });
 }
 function wslOK(args, options) {
   const r = wsl(args, options);
@@ -162,7 +164,12 @@ printf '%s' "$port"
     assert.ok(Number.isInteger(linuxPort) && linuxPort > 0);
     fs.writeFileSync(keyPath, wslOK(['cat', remote + '/identity']) + '\n');
     evidence.linux = wslOK(['uname', '-sr']);
-    check('Isolated Ubuntu OpenSSH server and disposable login created');
+    const osRelease = wslOK(['bash', '-s'], { input: '. /etc/os-release\nprintf "%s|%s" "$ID" "$VERSION_ID"\n' });
+    assert.equal(osRelease, 'ubuntu|' + distribution.slice('Ubuntu-'.length), 'Actual Linux distribution differs from matrix target');
+    evidence.osRelease = osRelease;
+    evidence.openssh = wslOK(['dpkg-query', '-W', 'openssh-server']);
+    evidence.tmux = wslOK(['tmux', '-V']);
+    check('Isolated Ubuntu OpenSSH server and disposable login created', { distribution, osRelease, openssh: evidence.openssh, tmux: evidence.tmux });
     await until(() => new Promise(resolveReady => {
       const socket = net.connect(linuxPort, '127.0.0.1');
       let banner = '';

@@ -16,11 +16,16 @@ permissions:
 
 jobs:
   acceptance:
-    name: Windows executable against Ubuntu OpenSSH
+    name: Windows executable against ${{ matrix.ubuntu }}
     runs-on: windows-2025
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        ubuntu: ['Ubuntu-22.04', 'Ubuntu-24.04']
     env:
       RELEASE_TAG: ${{ inputs.release_tag || 'v0.3.0' }}
+      WSL_DISTRO: ${{ matrix.ubuntu }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -43,7 +48,7 @@ jobs:
           if ((Get-Content .acceptance-download/unpacked/VERSION -Raw).Trim() -ne $env:RELEASE_TAG.Substring(1)) { throw 'Package version mismatch' }
       - uses: Vampire/setup-wsl@4c48163d9f981914dd8caa0fc335fe19cca5bff4 # v7.2.0
         with:
-          distribution: Ubuntu-24.04
+          distribution: ${{ matrix.ubuntu }}
           wsl-version: '2'
           additional-packages: openssh-server tmux python3
       - name: Install browser acceptance dependencies
@@ -61,7 +66,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: windows-linux-acceptance
+          name: windows-linux-acceptance-${{ matrix.ubuntu }}
           path: acceptance-results/
           if-no-files-found: warn
           retention-days: 14
