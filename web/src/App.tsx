@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "./store";
 import { api, getMode } from "./api/client";
 import { wsClient, type ConnectionStatus } from "./ws/protocol";
-import { TerminalView } from "./terminal/TerminalView";
+import { TerminalWorkspace } from "./workspace/TerminalWorkspace";
+import { CommandLibrary } from "./workspace/CommandLibrary";
+import { ThemeToggle } from "./components/ThemeToggle";
+import { TransferPanel } from "./sftp/TransferPanel";
+import { useTransfers, isPending } from "./sftp/transfers";
 import { MonitorBar } from "./monitor/MonitorBar";
 import { FilePanel } from "./sftp/FilePanel";
 import { ConnectDialog } from "./ConnectDialog";
@@ -51,6 +55,10 @@ export default function App() {
       : null,
   );
   const [showAI, setShowAI] = useState(false);
+  const [showCommands, setShowCommands] = useState(false);
+  const [showTransfers, setShowTransfers] = useState(false);
+  const transfers = useTransfers();
+  const pendingTransfers = transfers.filter(isPending).length;
   const [alertNode, setAlertNode] = useState(() =>
     new URL(location.href).searchParams.get("node"),
   );
@@ -147,12 +155,12 @@ export default function App() {
       </>
     );
   return (
-    <div className="flex h-dvh overflow-hidden bg-[#0b1019] text-slate-100">
+    <div className="flex h-dvh overflow-hidden bg-[var(--surface-base)] text-slate-100">
       <aside
-        className="flex shrink-0 flex-col border-r border-slate-800 bg-[#101722]"
+        className="flex shrink-0 flex-col border-r border-slate-800 bg-[var(--surface-panel)]"
         style={{ width: collapsed ? 52 : side }}
       >
-        <div className="flex h-16 shrink-0 items-center gap-2 px-3">
+        <div className="flex h-12 shrink-0 items-center gap-2 px-3">
           <button
             className="icon-button text-sky-300"
             onClick={() => setCollapsed(!collapsed)}
@@ -229,11 +237,11 @@ export default function App() {
         />
       )}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-slate-800 px-4">
+        <header className="flex h-11 shrink-0 items-center gap-2 border-b border-slate-800 px-3">
           <span
             className={`status-dot ${status === "connected" ? "bg-emerald-400" : "bg-amber-400 animate-pulse"}`}
           />
-          <span className="text-xs text-slate-400">
+          <span className="min-w-0 flex-1 truncate text-xs text-slate-400">
             {status === "connected"
               ? "工作台已连接"
               : status === "reconnecting"
@@ -243,22 +251,49 @@ export default function App() {
           <span className="ml-auto text-xs text-slate-500 hidden xl:inline">
             {getMode() === "remote" ? "远程工作台" : "本地工作台"}
           </span>
+          <ThemeToggle />
+          <button
+            className={`toolbar-button ${showCommands ? "selected" : ""}`}
+            aria-label="常用命令"
+            title="常用命令"
+            onClick={() => setShowCommands(true)}
+          >
+            <Icon name="star" size={15} />
+            <span className="hidden lg:inline">常用命令</span>
+          </button>
+          <button
+            className={`toolbar-button ${showTransfers ? "selected" : ""}`}
+            aria-label="上传"
+            title="上传"
+            onClick={() => setShowTransfers(!showTransfers)}
+          >
+            <Icon name="upload" size={15} />
+            <span className="hidden lg:inline">上传</span>
+            {pendingTransfers > 0 && (
+              <span className="count-badge">{pendingTransfers}</span>
+            )}
+          </button>
           <button
             className={`toolbar-button ${panel === "sessions" ? "selected" : ""}`}
+            aria-label="会话库"
+            title="会话库"
             onClick={() => setPanel(panel === "sessions" ? null : "sessions")}
           >
             <Icon name="terminal" size={16} />
-            会话库
+            <span className="hidden lg:inline">会话库</span>
             {background > 0 && (
               <span className="count-badge">{background} 后台</span>
             )}
           </button>
           <button
             className={`toolbar-button ${panel === "alerts" ? "selected" : ""}`}
+            aria-label="告警"
+            title="告警"
             onClick={() => setPanel(panel === "alerts" ? null : "alerts")}
           >
             <Icon name="bell" size={16} />
-            告警{unread > 0 && <span className="count-badge">{unread}</span>}
+            <span className="hidden lg:inline">告警</span>
+            {unread > 0 && <span className="count-badge">{unread}</span>}
           </button>
         </header>
         <div
@@ -269,7 +304,7 @@ export default function App() {
           {open.map((s, i) => (
             <div
               key={s.id}
-              className={`flex shrink-0 items-center gap-1 rounded-t-lg border px-2 py-1 ${s.id === st.activeId ? "border-slate-600 border-b-transparent bg-[#0c0e12]" : "border-transparent text-slate-400"}`}
+              className={`flex shrink-0 items-center gap-1 rounded-t-lg border px-2 py-1 ${s.id === st.activeId ? "border-slate-600 border-b-transparent bg-[var(--terminal-bg)]" : "border-transparent text-slate-400"}`}
             >
               <button
                 role="tab"
@@ -345,14 +380,7 @@ export default function App() {
                     </span>
                   )}
                 </div>
-                <div className="min-h-0 flex-1 p-2 bg-[#0c0e12]">
-                  <TerminalView
-                    key={active.id}
-                    sessionId={active.id}
-                    nodeId={active.nodeId}
-                    readOnly={active.state === "closed"}
-                  />
-                </div>
+                <TerminalWorkspace />
                 {showFiles && active.hasFiles && (
                   <>
                     <ResizeHandle
@@ -368,16 +396,20 @@ export default function App() {
                       className="shrink-0"
                       style={{ height: files, maxHeight: "55%" }}
                     >
-                      <FilePanel key={active.id} sessionId={active.id} />
+                      <FilePanel
+                        key={active.id}
+                        sessionId={active.id}
+                        onTransfers={() => setShowTransfers(true)}
+                      />
                     </div>
                   </>
                 )}
               </>
             ) : (
               <div className="flex h-full items-center justify-center overflow-auto p-8">
-                <div className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900/50 p-8">
+                <div className="w-full max-w-lg rounded-xl border border-slate-800 bg-slate-900/50 p-6">
                   <Icon name={focus ? "server" : "terminal"} size={30} />
-                  <h1 className="mt-5 text-2xl font-semibold">
+                  <h1 className="mt-3 text-xl font-semibold">
                     {focus?.name ?? "从一台主机开始"}
                   </h1>
                   <p className="mt-3 text-sm leading-7 text-slate-400">
@@ -385,6 +417,16 @@ export default function App() {
                       ? `${focus.config.user ?? ""}@${focus.config.host ?? ""} · 当前没有打开的会话。连接后可使用终端、文件和监控。`
                       : "保存常用主机，在浏览器中连接与管理。关闭视图后，可从会话库继续工作。"}
                   </p>
+                  {!focus && !st.nodes.some((n) => n.kind === "connection") && (
+                    <ol
+                      className="mt-4 space-y-2 text-xs text-slate-400"
+                      aria-label="首次连接步骤"
+                    >
+                      <li>1. 添加地址、端口、用户和认证方式</li>
+                      <li>2. 测试连接并核对主机指纹</li>
+                      <li>3. 保存并连接，开始使用终端</li>
+                    </ol>
+                  )}
                   <div className="mt-6 flex flex-wrap gap-3">
                     {focus ? (
                       <button
@@ -447,6 +489,9 @@ export default function App() {
               />
             </div>
           )}
+          {showTransfers && (
+            <TransferPanel onClose={() => setShowTransfers(false)} />
+          )}
         </main>
       </div>
       {st.connecting && (
@@ -467,6 +512,9 @@ export default function App() {
             <Icon name="close" size={16} />
           </button>
         </div>
+      )}
+      {showCommands && (
+        <CommandLibrary onClose={() => setShowCommands(false)} />
       )}
       <ConnectDialog />
       <NodeDialog />

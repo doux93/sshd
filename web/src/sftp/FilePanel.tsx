@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type FileEntry } from "../api/client";
 import { useAppStore } from "../store";
+import { uploadQueue, useTransfers, isPending } from "./transfers";
 import { Icon } from "../components/Icon";
 
 function formatSize(bytes: number): string {
@@ -25,27 +26,46 @@ function parentOf(p: string): string {
   return trimmed.slice(0, idx);
 }
 
-export function FilePanel({ sessionId }: { sessionId: string }) {
+export function FilePanel({
+  sessionId,
+  onTransfers,
+}: {
+  sessionId: string;
+  onTransfers?(): void;
+}) {
+  const jobs = useTransfers();
+  const target = useAppStore(
+    (s) => s.sessions.find((x) => x.id === sessionId)?.target ?? sessionId,
+  );
+  const completed = jobs
+    .filter((j) => j.sessionId === sessionId && j.status === "completed")
+    .map((j) => j.id)
+    .join(",");
+  const pending = jobs.filter(
+    (j) => j.sessionId === sessionId && isPending(j),
+  ).length;
+  const generation = useRef(0);
   const terminalCwd = useAppStore(
     (s) => s.sessions.find((x) => x.id === sessionId)?.cwd ?? "",
   );
   const setError = useAppStore((s) => s.setError);
 
   const [path, setPath] = useState(".");
+  const [draftPath, setDraftPath] = useState(".");
   const [entries, setEntries] = useState<FileEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [follow, setFollow] = useState(true);
-  const [upload, setUpload] = useState<{ name: string; pct: number } | null>(
-    null,
-  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(
     async (target: string) => {
+      const current = ++generation.current;
       setLoading(true);
       try {
         const res = await api.listFiles(sessionId, target);
+        if (current !== generation.current) return;
         setPath(res.path);
+        setDraftPath(res.path);
         // Directories first, then case-insensitive by name.
         setEntries(
           res.entries.sort((a, b) =>
@@ -59,9 +79,10 @@ export function FilePanel({ sessionId }: { sessionId: string }) {
           ),
         );
       } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
+        if (current === generation.current)
+          setError(err instanceof Error ? err.message : String(err));
       } finally {
-        setLoading(false);
+        if (current === generation.current) setLoading(false);
       }
     },
     [sessionId, setError],
@@ -70,7 +91,13 @@ export function FilePanel({ sessionId }: { sessionId: string }) {
   // Initial listing (remote home directory).
   useEffect(() => {
     load(".");
+    return () => {
+      generation.current++;
+    };
   }, [load]);
+  useEffect(() => {
+    if (completed) void load(path);
+  }, [completed]);
 
   // Follow the terminal's cwd when enabled.
   useEffect(() => {
@@ -86,29 +113,23 @@ export function FilePanel({ sessionId }: { sessionId: string }) {
       );
   };
 
-  const doUpload = async (files: FileList | null) => {
+  const doUpload = (files: FileList | null) => {
     if (!files?.length) return;
-    for (const file of Array.from(files)) {
-      setUpload({ name: file.name, pct: 0 });
-      try {
-        await api.uploadFile(
-          sessionId,
-          `${path.replace(/\/+$/, "")}/${file.name}`,
-          file,
-          (loaded, total) => {
-            // Empty or unknown-size files: 0/0 -> NaN. Show 0% until done
-            // then jump to 100%, otherwise the progress bar shows "NaN%".
-            const pct = total > 0 ? (loaded / total) * 100 : 0;
-            setUpload({ name: file.name, pct });
-          },
-        );
-        if (file.size === 0) setUpload({ name: file.name, pct: 100 });
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
-      }
+    const list = Array.from(files);
+    const existing = list.filter((f) => entries.some((e) => e.name === f.name));
+    if (
+      existing.length &&
+      !window.confirm(
+        `覆盖目标目录中 ${existing.length} 个同名文件？上传失败会保留原文件。`,
+      )
+    )
+      return;
+    try {
+      uploadQueue.enqueue(sessionId, target, path, list);
+      onTransfers?.();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
     }
-    setUpload(null);
-    load(path);
   };
 
   const remove = async (entry: FileEntry) => {
@@ -178,9 +199,10 @@ export function FilePanel({ sessionId }: { sessionId: string }) {
         </button>
         <input
           className="min-w-0 flex-1 rounded border border-transparent bg-slate-800 px-2 py-1 font-mono text-slate-200 outline-none focus:border-blue-600"
-          value={path}
-          onChange={(e) => setPath(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && load(path)}
+          aria-label="远端目录"
+          value={draftPath}
+          onChange={(e) => setDraftPath(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && load(draftPath)}
           spellCheck={false}
         />
         <button
@@ -200,6 +222,7 @@ export function FilePanel({ sessionId }: { sessionId: string }) {
         <button
           onClick={() => fileInputRef.current?.click()}
           className="rounded px-1.5 py-0.5 text-slate-300 hover:bg-slate-700 hover:text-slate-50"
+          aria-label="上传文件"
           title="上传文件(也可直接拖入)"
         >
           <Icon name="upload" size={16} />
@@ -228,20 +251,13 @@ export function FilePanel({ sessionId }: { sessionId: string }) {
         />
       </div>
 
-      {/* 上传进度 */}
-      {upload && (
-        <div className="border-b border-slate-700 px-2 py-1.5">
-          <div className="mb-1 flex justify-between text-slate-300">
-            <span className="truncate">上传 {upload.name}</span>
-            <span>{upload.pct.toFixed(0)}%</span>
-          </div>
-          <div className="h-1 overflow-hidden rounded bg-slate-700">
-            <div
-              className="h-full bg-blue-500 transition-[width]"
-              style={{ width: `${upload.pct}%` }}
-            />
-          </div>
-        </div>
+      {pending > 0 && (
+        <button
+          className="border-b border-slate-700 px-3 py-2 text-left text-sky-300"
+          onClick={onTransfers}
+        >
+          {pending} 个上传任务进行中 · 查看队列
+        </button>
       )}
 
       {/* 文件列表 */}

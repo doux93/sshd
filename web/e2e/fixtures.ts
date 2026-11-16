@@ -5,7 +5,7 @@ import {
   type Page,
 } from "@playwright/test";
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve, join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -100,9 +100,11 @@ export const test = base.extend<{}, { app: App }>({
         const address = model.address();
         if (!address || typeof address === "string")
           throw Error("model address");
+        const remoteRoot = join(dir, "remote");
+        await mkdir(remoteRoot);
         const fake = await launch(
           "fakesshd",
-          ["-addr", "127.0.0.1:0"],
+          ["-addr", "127.0.0.1:0", "-root", remoteRoot],
           /fake sshd on 127\.0\.0\.1:(\d+)/,
         );
         processes.push(fake.child);
@@ -201,7 +203,12 @@ export function seedAlert(app: App, nodeId: string, label: string) {
 export async function watchSockets(page: Page) {
   await page.addInitScript(() => {
     const Native = window.WebSocket;
-    const state = { sockets: [] as WebSocket[], binary: 0, received: "" };
+    const state = {
+      sockets: [] as WebSocket[],
+      binary: 0,
+      received: "",
+      controls: [] as string[],
+    };
     (window as any).__sshxTest = state;
     window.WebSocket = class extends Native {
       constructor(url: string | URL, protocols?: string | string[]) {
@@ -217,6 +224,8 @@ export async function watchSockets(page: Page) {
       }
       send(data: string | ArrayBufferLike | Blob | ArrayBufferView) {
         if (typeof data !== "string") state.binary++;
+        else if (/"type":"(?:attach|detach)"/.test(data))
+          state.controls.push(data);
         super.send(data);
       }
     };

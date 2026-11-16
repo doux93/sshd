@@ -174,7 +174,7 @@ test("desktop connection test, terminal persistence, reconnect and AI preview", 
     if (!extension) throw new Error("Missing WebGL context-loss test support");
     extension.loseContext();
   });
-  await expect(page.locator(".xterm-rows")).toContainText("/root");
+  await expect(page.locator(".xterm-rows")).toContainText("/remote");
   const separator = page.getByRole("separator", { name: "主机栏宽度" });
   await separator.focus();
   await page.keyboard.press("ArrowRight");
@@ -257,8 +257,8 @@ test("mobile touch opens a read-only terminal and never sends keyboard input", a
     .toBeGreaterThan(0);
   await expect
     .poll(() => page.evaluate(() => (window as any).__sshxTest.received))
-    .toContain("/root $");
-  await expect(page.locator(".xterm-rows")).toContainText("/root");
+    .toContain("/remote");
+  await expect(page.locator(".xterm-rows")).toContainText("/remote");
   await page.locator(".xterm-screen").tap();
   const before = await page.evaluate(() => (window as any).__sshxTest.binary);
   await page.keyboard.type("do-not-send");
@@ -271,8 +271,248 @@ test("mobile touch opens a read-only terminal and never sends keyboard input", a
     path: info.outputPath("mobile-readonly.png"),
     fullPage: true,
   });
+  await page.getByRole("button", { name: "切换浅色主题" }).last().tap();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await expect(page.locator(".xterm-rows")).toContainText("/remote");
+  await page.screenshot({
+    path: info.outputPath("mobile-light.png"),
+    fullPage: true,
+  });
   await page.getByRole("button", { name: "返回", exact: true }).tap();
   await expect(
     page.getByText("只读 · 不发送输入", { exact: true }),
   ).toHaveCount(0);
+});
+
+test("themes, split terminals and saved commands preserve explicit input targets", async ({
+  page,
+  context,
+  app,
+}, info) => {
+  test.skip(info.project.name !== "desktop", "Desktop workspace flow");
+  await loginAPI(context.request, app);
+  const hostA = await createHost(context.request, app, "Split A");
+  const hostB = await createHost(context.request, app, "Split B");
+  const a = await connectHost(context.request, app, hostA.id);
+  const b = await connectHost(context.request, app, hostB.id);
+  await watchSockets(page);
+  await page.addInitScript(
+    ({ a, b }) =>
+      localStorage.setItem(
+        "sshx.views.v2",
+        JSON.stringify({ ids: [a, b], active: a }),
+      ),
+    { a: a.id, b: b.id },
+  );
+  await page.goto(app.url);
+  await page.getByRole("button", { name: "分屏", exact: true }).click();
+  const paneA = page.getByRole("region", { name: "终端窗格 Split A" });
+  const paneB = page.getByRole("region", { name: "终端窗格 Split B" });
+  await expect(paneA).toBeVisible();
+  await expect(paneB).toBeVisible();
+  const sessions = async () =>
+    await (await context.request.get(app.url + "/api/sessions")).json();
+  await expect
+    .poll(
+      async () =>
+        (await sessions()).filter(
+          (s: any) => [a.id, b.id].includes(s.id) && s.attached === 1,
+        ).length,
+    )
+    .toBe(2);
+  const controls = await page.evaluate(
+    () => (window as any).__sshxTest.controls.length,
+  );
+  await page.getByRole("button", { name: "切换浅色主题" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  expect(
+    await page.evaluate(() => (window as any).__sshxTest.controls.length),
+  ).toBe(controls);
+  await paneA.locator(".xterm-screen").click();
+  await page.keyboard.type("cd /split-a");
+  await page.keyboard.press("Enter");
+  await expect
+    .poll(async () => (await sessions()).find((s: any) => s.id === a.id)?.cwd)
+    .toBe("/split-a");
+  expect((await sessions()).find((s: any) => s.id === b.id)?.cwd).toContain(
+    "/remote",
+  );
+  await paneB.locator(".xterm-screen").click();
+  await page.keyboard.type("cd /split-b");
+  await page.keyboard.press("Enter");
+  await expect
+    .poll(async () => (await sessions()).find((s: any) => s.id === b.id)?.cwd)
+    .toBe("/split-b");
+  expect((await sessions()).find((s: any) => s.id === a.id)?.cwd).toBe(
+    "/split-a",
+  );
+  await assertFits(page);
+  await page.screenshot({
+    path: info.outputPath("light-split.png"),
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "上下排列", exact: true }).click();
+  await expect(page.locator(".split-terminals")).toHaveClass(/stacked/);
+  await page.getByRole("button", { name: "常用命令", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "常用命令" });
+  await dialog.getByLabel("命令名称").fill("查看目录");
+  await dialog.getByLabel("命令内容").fill("pwd");
+  await dialog.getByRole("button", { name: "收藏命令", exact: true }).click();
+  await context.grantPermissions(["clipboard-read", "clipboard-write"], {
+    origin: app.url,
+  });
+  const before = await page.evaluate(() => (window as any).__sshxTest.binary);
+  await dialog.getByRole("button", { name: "复制", exact: true }).click();
+  await expect(dialog.getByRole("status")).toContainText("已复制");
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("pwd");
+  expect(await page.evaluate(() => (window as any).__sshxTest.binary)).toBe(
+    before,
+  );
+  await page.screenshot({
+    path: info.outputPath("command-library.png"),
+    fullPage: true,
+  });
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page.getByRole("button", { name: "常用命令", exact: true }).click();
+  await expect(dialog.getByText("查看目录", { exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: "关闭常用命令" }).click();
+  await page.getByRole("button", { name: "分屏", exact: true }).click();
+  await expect(page.locator(".split-terminals")).toHaveClass(/stacked/);
+  await page.getByRole("button", { name: "左右排列", exact: true }).click();
+  await page.getByRole("button", { name: "切换深色主题" }).click();
+  await page.screenshot({
+    path: info.outputPath("dark-split.png"),
+    fullPage: true,
+  });
+  await page.setViewportSize({ width: 900, height: 760 });
+  await assertFits(page);
+  await page.screenshot({
+    path: info.outputPath("compact-workspace.png"),
+    fullPage: true,
+  });
+});
+
+test("first-host errors explain authentication and save-and-connect opens the terminal", async ({
+  page,
+  context,
+  app,
+}, info) => {
+  test.skip(info.project.name !== "desktop", "Desktop onboarding flow");
+  await loginAPI(context.request, app);
+  await page.goto(app.url);
+  await page.getByRole("button", { name: "新建主机", exact: true }).click();
+  await page.getByLabel("名称（选填）").fill("Onboarding host");
+  await page.getByLabel("主机地址", { exact: true }).fill("127.0.0.1");
+  await page.getByLabel("端口", { exact: true }).fill(String(app.sshPort));
+  await page.getByLabel("登录用户").fill("test");
+  await page.getByLabel("密码", { exact: true }).fill("wrong-password");
+  await page.getByRole("button", { name: "测试连接", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "新建主机" })).toContainText(
+    "认证失败，请检查登录用户",
+  );
+  await page.getByLabel("密码", { exact: true }).fill("secret");
+  await page.getByRole("button", { name: "保存并连接", exact: true }).click();
+  await expect(
+    page.getByRole("tab", { name: "Onboarding host", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".xterm-screen")).toBeVisible();
+});
+
+test("SFTP upload survives panel closure and cancelled or failed jobs retry", async ({
+  page,
+  context,
+  app,
+}, info) => {
+  test.skip(info.project.name !== "desktop", "Desktop SFTP flow");
+  await loginAPI(context.request, app);
+  const host = await createHost(context.request, app, "File host");
+  const session = await connectHost(context.request, app, host.id);
+  await page.addInitScript(
+    (id) =>
+      localStorage.setItem(
+        "sshx.views.v2",
+        JSON.stringify({ ids: [id], active: id }),
+      ),
+    session.id,
+  );
+  await page.goto(app.url);
+  await page.getByRole("button", { name: "文件", exact: true }).click();
+  await expect(page.getByLabel("远端目录")).toHaveValue(/\/remote$/);
+  const remoteDir = await page.getByLabel("远端目录").inputValue();
+  // Delay one actual upload request, then verify cancellation and retry against SFTP.
+  let release: () => void = () => {};
+  let intercepted = false;
+  await page.route(
+    "**/api/files/upload?**",
+    async (route) => {
+      intercepted = true;
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      await route.abort().catch(() => {});
+    },
+    { times: 1 },
+  );
+  await page
+    .locator("input[type=file]")
+    .setInputFiles({
+      name: "acceptance.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("verified SFTP contents\n"),
+    });
+  const queue = page.getByRole("complementary", { name: "上传队列" });
+  await expect(queue).toBeVisible();
+  await expect.poll(() => intercepted).toBe(true);
+  await queue.getByRole("button", { name: "取消上传" }).click();
+  await expect(queue.getByText("已取消", { exact: true })).toBeVisible();
+  release();
+  await queue.getByRole("button", { name: "重试上传" }).click();
+  await expect(queue.getByText("已完成", { exact: true })).toBeVisible();
+  const uploaded = await context.request.get(
+    app.url +
+      "/api/files/download?session=" +
+      session.id +
+      "&path=" +
+      encodeURIComponent(remoteDir + "/acceptance.txt"),
+  );
+  expect(uploaded.ok()).toBe(true);
+  expect(await uploaded.text()).toBe("verified SFTP contents\n");
+  await queue.getByRole("button", { name: "收起上传队列" }).click();
+  await page.route(
+    "**/api/files/upload?**",
+    (route) =>
+      route.fulfill({
+        status: 502,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "Injected connection loss" }),
+      }),
+    { times: 1 },
+  );
+  await page
+    .locator("input[type=file]")
+    .setInputFiles({
+      name: "retry.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("retry contents"),
+    });
+  await expect(queue.getByText("上传失败", { exact: true })).toBeVisible();
+  await queue.getByRole("button", { name: "收起上传队列" }).click();
+  await page.getByRole("button", { name: "文件", exact: true }).click();
+  await page.getByRole("button", { name: "上传", exact: true }).click();
+  await queue.getByRole("button", { name: "重试上传" }).click();
+  await expect(queue.getByText("已完成", { exact: true })).toHaveCount(2);
+  const retried = await context.request.get(
+    app.url +
+      "/api/files/download?session=" +
+      session.id +
+      "&path=" +
+      encodeURIComponent(remoteDir + "/retry.txt"),
+  );
+  expect(retried.ok()).toBe(true);
+  expect(await retried.text()).toBe("retry contents");
+  await page.screenshot({
+    path: info.outputPath("upload-queue.png"),
+    fullPage: true,
+  });
 });

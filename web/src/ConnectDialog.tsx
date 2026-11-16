@@ -1,7 +1,7 @@
 // Quick connect: ad-hoc session without saving a node. Goes through the
 // same TOFU host-key flow as saved connections.
 import { useState, type FormEvent } from "react";
-import { api, ApiError } from "./api/client";
+import { api, ApiError, connectionError } from "./api/client";
 import { useAppStore } from "./store";
 
 export function ConnectDialog() {
@@ -46,7 +46,7 @@ export function ConnectDialog() {
         return;
       }
       setHostKeyPrompt(null);
-      setError(err instanceof Error ? err.message : String(err));
+      setError(connectionError(err));
     }
   };
 

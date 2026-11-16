@@ -4,6 +4,7 @@ import { api, getMode, type MonitorSample } from "../api/client";
 import { wsClient, type ConnectionStatus } from "../ws/protocol";
 import { TerminalView } from "../terminal/TerminalView";
 import { AlertsPanel } from "../workspace/AlertsPanel";
+import { ThemeToggle } from "../components/ThemeToggle";
 import { Icon } from "../components/Icon";
 export function MobileLayout({ status }: { status: ConnectionStatus }) {
   const st = useAppStore();
@@ -53,7 +54,7 @@ export function MobileLayout({ status }: { status: ConnectionStatus }) {
     related = st.sessions.filter((s) => s.nodeId === selectedNode),
     watching = st.sessions.find((s) => s.id === watch);
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-[#0b1019] text-slate-100">
+    <div className="flex h-dvh flex-col overflow-hidden bg-[var(--surface-base)] text-slate-100">
       <header className="flex shrink-0 items-center gap-2 border-b border-slate-800 px-4 py-3">
         <Icon name="terminal" />
         <strong>sshx</strong>
@@ -63,9 +64,12 @@ export function MobileLayout({ status }: { status: ConnectionStatus }) {
         <span className="text-xs text-slate-400">
           {status === "connected" ? "只读工作台" : "正在重新连接…"}
         </span>
+        <div className="ml-auto">
+          <ThemeToggle />
+        </div>
         {getMode() === "remote" && (
           <button
-            className="icon-button ml-auto"
+            className="icon-button"
             onClick={logout}
             aria-label="退出登录"
           >
@@ -230,7 +234,7 @@ export function MobileLayout({ status }: { status: ConnectionStatus }) {
         ))}
       </nav>
       {watch && (
-        <div className="fixed inset-0 z-40 flex flex-col bg-[#0c0e12]">
+        <div className="fixed inset-0 z-40 flex flex-col bg-[var(--terminal-bg)]">
           <header className="flex shrink-0 items-center gap-2 border-b border-slate-800 bg-slate-900 px-3 py-3">
             <button
               className="button-secondary text-xs"
@@ -244,6 +248,7 @@ export function MobileLayout({ status }: { status: ConnectionStatus }) {
             <span className="rounded bg-sky-950 px-2 py-1 text-[11px] text-sky-300">
               只读 · 不发送输入
             </span>
+            <ThemeToggle />
           </header>
           <div className="min-h-0 flex-1">
             <TerminalView

@@ -8,6 +8,7 @@ import {
 import {
   api,
   ApiError,
+  connectionError,
   getMode,
   type NodeRequest,
   type AlertRule,
@@ -108,16 +109,23 @@ export function NodeDialog() {
   }
   async function save(e: FormEvent) {
     e.preventDefault();
+    const connectAfter =
+      (e.nativeEvent as SubmitEvent | undefined)?.submitter?.getAttribute(
+        "data-connect",
+      ) === "true";
     setBusy("save");
     setError("");
     try {
       const req = request();
-      if (existing) await api.updateNode(existing.id, req);
-      else await api.createNode(req);
+      const saved = existing
+        ? await api.updateNode(existing.id, req)
+        : await api.createNode(req);
       await refreshNodes();
       close();
+      if (connectAfter && !isFolder)
+        await useAppStore.getState().connectNode(saved.id);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(connectionError(e));
     } finally {
       setBusy(null);
     }
@@ -153,7 +161,7 @@ export function NodeDialog() {
           });
         } else {
           setHostKeyPrompt(null);
-          setError(e instanceof Error ? e.message : String(e));
+          setError(connectionError(e));
         }
       } finally {
         if (current === generation.current) setBusy(null);
@@ -536,7 +544,7 @@ export function NodeDialog() {
             {result}
           </p>
         )}
-        <div className="mt-6 flex items-center gap-2">
+        <div className="mt-6 flex flex-wrap items-center gap-2">
           {!isFolder && (
             <button
               type="button"
@@ -555,7 +563,17 @@ export function NodeDialog() {
           >
             取消
           </button>
-          <button type="submit" disabled={!!busy} className="button-primary">
+          {!isFolder && (
+            <button
+              type="submit"
+              data-connect="true"
+              disabled={!!busy}
+              className="button-primary"
+            >
+              保存并连接
+            </button>
+          )}
+          <button type="submit" disabled={!!busy} className="button-secondary">
             {busy === "save" ? "保存中…" : isFolder ? "保存文件夹" : "保存主机"}
           </button>
         </div>

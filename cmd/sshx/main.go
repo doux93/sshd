@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -35,6 +36,9 @@ import (
 	"sshx/web"
 )
 
+var version = "dev"
+var revision = "unknown"
+
 func main() {
 	addr := flag.String("addr", "127.0.0.1:8722", "listen address (keep loopback in local mode)")
 	dataPath := flag.String("data", "", "database path (default: per-user config dir)")
@@ -47,7 +51,13 @@ func main() {
 	tlsCert := flag.String("tls-cert", "", "remote mode: TLS certificate (PEM) — enables HTTPS")
 	tlsKey := flag.String("tls-key", "", "remote mode: TLS key (PEM)")
 	secureCookies := flag.Bool("secure-cookies", true, "remote mode: require HTTPS cookies (disable only for loopback HTTP testing)")
+	showVersion := flag.Bool("version", false, "print version and exit")
+	openBrowser := flag.Bool("open-browser", runtime.GOOS == "windows", "local mode: open the workbench in your default browser")
 	flag.Parse()
+	if *showVersion {
+		fmt.Printf("sshx %s (%s)\n", version, revision)
+		return
+	}
 	*mode = strings.ToLower(strings.TrimSpace(*mode))
 
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
@@ -179,6 +189,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	launcherURL := ""
 	// In local mode print the launcher URL as before.
 	if *mode == "local" {
 		token := ""
@@ -190,7 +201,8 @@ func main() {
 				fmt.Println(token)
 			}
 		} else {
-			fmt.Printf("\n  sshx ready:  http://%s/?token=%s\n\n", ln.Addr(), token)
+			launcherURL = fmt.Sprintf("http://%s/?token=%s", ln.Addr(), token)
+			fmt.Printf("\n  sshx %s ready:  %s\n\n", version, launcherURL)
 		}
 	} else {
 		// Remote mode: tell the operator where the UI lives and what to do.
@@ -241,6 +253,11 @@ func main() {
 		}
 	}()
 
+	if *openBrowser && launcherURL != "" {
+		if err := launchBrowser(launcherURL); err != nil {
+			log.Warn("Could not open browser; open the printed workbench URL", "err", err)
+		}
+	}
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(stop)

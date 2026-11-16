@@ -15,6 +15,8 @@ function fixture(storage = new Map()) {
   };
   const ctx = vm.createContext({
     console,
+    crypto: require("node:crypto").webcrypto,
+    AbortController,
     URL,
     location: loc,
     window: { location: loc, history: { replaceState() {} } },

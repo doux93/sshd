@@ -38,9 +38,7 @@ export function HostKeyDialog() {
         <p className="text-sm leading-relaxed text-slate-200">
           {hostKey.changed ? (
             <>
-              <span className="font-semibold text-red-300">
-                {hostKey.host}
-              </span>{" "}
+              <span className="font-semibold text-red-300">{hostKey.host}</span>{" "}
               返回的密钥与之前记录的不一致。这可能意味着中间人攻击,也可能是服务器
               重装了系统。请务必核实后再继续。
             </>
@@ -74,7 +72,9 @@ export function HostKeyDialog() {
                 : "bg-blue-600 hover:bg-blue-500"
             }`}
           >
-            {hostKey.changed ? "我已核实,信任新密钥" : hostKeyPrompt.actionLabel ?? "信任并连接"}
+            {hostKey.changed
+              ? "我已核实,信任新密钥"
+              : (hostKeyPrompt.actionLabel ?? "信任并连接")}
           </button>
         </div>
       </div>

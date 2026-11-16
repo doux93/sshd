@@ -244,7 +244,8 @@ func writeDialError(w http.ResponseWriter, err error) {
 		})
 		return
 	}
-	writeError(w, http.StatusBadGateway, err)
+	code, hint := dialErrorHint(err)
+	writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error(), "code": code, "hint": hint})
 }
 
 func (s *Server) handleImportSSHConfig(w http.ResponseWriter, r *http.Request) {

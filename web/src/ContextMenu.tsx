@@ -25,9 +25,12 @@ export function ContextMenu({ x, y, items, onClose }: ContextMenuProps) {
     if (!el) return;
     const rect = el.getBoundingClientRect();
     const pad = 8;
-    let nx = x, ny = y;
-    if (nx + rect.width + pad > window.innerWidth) nx = window.innerWidth - rect.width - pad;
-    if (ny + rect.height + pad > window.innerHeight) ny = window.innerHeight - rect.height - pad;
+    let nx = x,
+      ny = y;
+    if (nx + rect.width + pad > window.innerWidth)
+      nx = window.innerWidth - rect.width - pad;
+    if (ny + rect.height + pad > window.innerHeight)
+      ny = window.innerHeight - rect.height - pad;
     if (nx < pad) nx = pad;
     if (ny < pad) ny = pad;
     setPos({ x: nx, y: ny });

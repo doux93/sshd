@@ -35,7 +35,7 @@ export function CtrlKBar({
     <div
       role="dialog"
       aria-label="AI 命令助手"
-      className="absolute left-1/2 top-3 z-30 max-h-[90%] w-[min(40rem,94%)] -translate-x-1/2 overflow-auto rounded-xl border border-slate-600 bg-[#131c2b] p-4 shadow-2xl"
+      className="absolute left-1/2 top-3 z-30 max-h-[90%] w-[min(40rem,94%)] -translate-x-1/2 overflow-auto rounded-xl border border-slate-600 bg-[var(--surface-panel)] p-4 shadow-2xl"
     >
       <div className="mb-3 flex items-center justify-between">
         <span className="flex items-center gap-2 text-sm font-semibold">

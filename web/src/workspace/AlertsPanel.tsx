@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, getMode, type AlertRecord } from "../api/client";
 import { useAppStore } from "../store";
 import { Icon } from "../components/Icon";
+import { NotificationStatus } from "./NotificationStatus";
 import { enableNotifications } from "./notifications";
 export function AlertsPanel({
   onNode,
@@ -119,6 +120,7 @@ export function AlertsPanel({
       )}
       {getMode() === "remote" && (
         <div className="border-b border-slate-800 px-4 py-2">
+          <NotificationStatus />
           <button
             className="text-xs text-sky-300"
             disabled={subscribing}

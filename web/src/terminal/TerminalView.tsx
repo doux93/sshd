@@ -17,6 +17,7 @@ import {
   onFontSize,
 } from "./fontSize";
 import { api, type CommandSuggestion } from "../api/client";
+import { useTheme, terminalTheme } from "../workspace/theme";
 import { CtrlKBar } from "../ai/CtrlKBar";
 
 const encoder = new TextEncoder();
@@ -26,10 +27,12 @@ export function TerminalView({
   sizeMode,
   nodeId,
   readOnly: requestedReadOnly = false,
+  focusOnMount = true,
 }: {
   sessionId: string;
   nodeId?: string;
   readOnly?: boolean;
+  focusOnMount?: boolean;
   /**
    * "passive" makes this view render at the PTY's geometry instead of its
    * own, so it never reflows a terminal another client is using. The mobile
@@ -38,6 +41,14 @@ export function TerminalView({
    */
   sizeMode?: SizeMode;
 }) {
+  const theme = useTheme();
+  const termRef = useRef<Terminal | null>(null);
+  useEffect(() => {
+    if (termRef.current) termRef.current.options.theme = terminalTheme(theme);
+  }, [theme]);
+  useEffect(() => {
+    if (focusOnMount && !requestedReadOnly) termRef.current?.focus();
+  }, [focusOnMount, requestedReadOnly]);
   const containerRef = useRef<HTMLDivElement>(null);
   const mode = sizeMode ?? "negotiate";
   const readOnly = requestedReadOnly || mode === "passive";
@@ -98,13 +109,9 @@ export function TerminalView({
       fontSize: fontSize(),
       fontFamily: '"Cascadia Mono", Consolas, "Courier New", monospace',
       scrollback: 10_000,
-      theme: {
-        background: "#0c0e12",
-        foreground: "#d6dbe5",
-        cursor: "#7aa2f7",
-        selectionBackground: "#33467c",
-      },
+      theme: terminalTheme(theme),
     });
+    termRef.current = term;
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.loadAddon(new WebLinksAddon());
@@ -222,7 +229,7 @@ export function TerminalView({
       }
     });
 
-    if (!readOnly) term.focus();
+    if (!readOnly && focusOnMount) term.focus();
 
     return () => {
       ro?.disconnect();
@@ -230,6 +237,7 @@ export function TerminalView({
       onData.dispose();
       onBinary.dispose();
       wsClient.detach(channelId);
+      termRef.current = null;
       term.dispose();
     };
   }, [sessionId, mode, readOnly]);

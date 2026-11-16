@@ -12,6 +12,7 @@
 // Login completes independently of notification permissions; opt in from Alerts.
 
 import { useEffect, useState } from "react";
+import { ThemeToggle } from "../components/ThemeToggle";
 
 interface AuthStatus {
   mode: "local" | "remote";
@@ -109,6 +110,9 @@ export function LoginPage() {
 
   return (
     <div className="flex h-screen items-center justify-center bg-slate-900 text-slate-50">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -123,10 +127,14 @@ export function LoginPage() {
             : "\u8bf7\u8f93\u5165\u4e3b\u5bc6\u7801\u767b\u5f55"}
         </p>
 
-        <label className="mb-2 block text-xs uppercase tracking-wide text-slate-400">
+        <label
+          htmlFor="login-password"
+          className="mb-2 block text-xs uppercase tracking-wide text-slate-400"
+        >
           {"\u4e3b\u5bc6\u7801"}
         </label>
         <input
+          id="login-password"
           type="password"
           autoFocus
           value={password}

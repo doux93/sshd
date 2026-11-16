@@ -22,12 +22,15 @@ export function AISettingsDialog({
   useEffect(() => {
     if (!open) return;
     setErr("");
-    api.aiConfig().then((c: AIConfig) => {
-      setProvider(c.provider || "openai");
-      setModel(c.model);
-      setBaseURL(c.baseURL);
-      setHasKey(c.hasKey);
-    }).catch(() => {});
+    api
+      .aiConfig()
+      .then((c: AIConfig) => {
+        setProvider(c.provider || "openai");
+        setModel(c.model);
+        setBaseURL(c.baseURL);
+        setHasKey(c.hasKey);
+      })
+      .catch(() => {});
   }, [open]);
 
   if (!open) return null;
@@ -36,7 +39,12 @@ export function AISettingsDialog({
     setSaving(true);
     setErr("");
     try {
-      await api.setAIConfig({ provider, model, baseURL, apiKey: apiKey || undefined });
+      await api.setAIConfig({
+        provider,
+        model,
+        baseURL,
+        apiKey: apiKey || undefined,
+      });
       setApiKey("");
       setHasKey(true);
     } catch (e) {
@@ -47,12 +55,17 @@ export function AISettingsDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+      onClick={onClose}
+    >
       <div
         className="w-[min(28rem,92%)] rounded-lg border border-slate-600 bg-slate-800 p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-3 text-base font-semibold text-slate-100">AI 设置 (Ctrl+K)</h2>
+        <h2 className="mb-3 text-base font-semibold text-slate-100">
+          AI 设置 (Ctrl+K)
+        </h2>
         <p className="mb-4 text-xs text-slate-400">
           配置命令生成用的 LLM。API key 存在凭据库,不会回传前端。
         </p>
@@ -62,7 +75,9 @@ export function AISettingsDialog({
           onChange={(e) => setProvider(e.target.value)}
           className="mb-3 w-full rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-slate-100"
         >
-          <option value="openai">OpenAI 兼容 (OpenAI / OpenRouter / DeepSeek)</option>
+          <option value="openai">
+            OpenAI 兼容 (OpenAI / OpenRouter / DeepSeek)
+          </option>
           <option value="anthropic">Anthropic (Claude)</option>
         </select>
 
@@ -74,7 +89,9 @@ export function AISettingsDialog({
           className="mb-3 w-full rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-slate-100"
         />
 
-        <label className="mb-1 block text-xs text-slate-400">Base URL (可选,留空用默认)</label>
+        <label className="mb-1 block text-xs text-slate-400">
+          Base URL (可选,留空用默认)
+        </label>
         <input
           value={baseURL}
           onChange={(e) => setBaseURL(e.target.value)}

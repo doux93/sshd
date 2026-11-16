@@ -3,6 +3,7 @@ import { create } from "zustand";
 import {
   api,
   ApiError,
+  connectionError,
   type HostKeyInfo,
   type NodeInfo,
   type SessionInfo,
@@ -225,12 +226,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           return;
         }
         set({
-          error:
-            err instanceof ApiError
-              ? `${err.message}${err.status === 502 ? "（无法连接到目标主机，请检查配置）" : ""}`
-              : err instanceof Error
-                ? err.message
-                : String(err),
+          error: connectionError(err),
           connecting: false,
           connectingNodeId: null,
         });

@@ -56,8 +56,11 @@ jobs:
           mkdir -p .testbin
           suffix=''
           if [ "$RUNNER_OS" = 'Windows' ]; then suffix='.exe'; fi
-          go build -o ".testbin/sshx${suffix}" ./cmd/sshx
+          version=$(cat VERSION)
+          go build -trimpath -ldflags "-X main.version=$version -X main.revision=$GITHUB_SHA" -o ".testbin/sshx${suffix}" ./cmd/sshx
           go build -o ".testbin/fakesshd${suffix}" ./_fakesshd
+      - name: Version and Windows first-start smoke test
+        run: node scripts/smoke_startup.cjs
       - name: Install Chromium on Linux
         if: runner.os == 'Linux'
         working-directory: web
@@ -86,3 +89,42 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 14
+
+      - name: Package tested release
+        run: python scripts/package_release.py "$RUNNER_OS"
+      - name: Packaged downloads
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: package-${{ runner.os }}
+          path: release-dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish versioned download
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: package-*
+          path: release-dist
+          merge-multiple: true
+      - name: Publish reviewed version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(cat VERSION)
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Development build: kept as workflow artifacts."
+            exit 0
+          fi
+          if gh release view "v$version" >/dev/null 2>&1; then
+            echo "Version already published; immutable release preserved."
+            exit 0
+          fi
+          gh release create "v$version" release-dist/* --target "$GITHUB_SHA" --title "sshx $version" --notes-file docs/RELEASE_NOTES.md

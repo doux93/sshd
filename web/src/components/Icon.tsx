@@ -1,5 +1,9 @@
 import type { CSSProperties } from "react";
 const paths = {
+  sun: "M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0",
+  moon: "M20 15A9 9 0 0 1 9 3a9 9 0 1 0 11 12Z",
+  split: "M3 4h18v16H3Zm9 0v16",
+  copy: "M8 8h13v13H8ZM3 16V3h13",
   file: "M6 3h8l4 4v14H6Zm8 0v5h4M9 12h6m-6 4h6",
   link: "m10 13 4-4m-6 6-2 2a3 3 0 0 1-4-4l5-5a3 3 0 0 1 4 0m2 8a3 3 0 0 0 4 0l5-5a3 3 0 0 0-4-4l-2 2",
   terminal: "m5 7 4 5-4 5m7 0h7",

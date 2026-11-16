@@ -20,10 +20,12 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
+	"github.com/pkg/sftp"
 	"io"
 	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"golang.org/x/crypto/ssh"
@@ -31,7 +33,12 @@ import (
 
 func main() {
 	addr := flag.String("addr", "127.0.0.1:2222", "listen address")
+	root := flag.String("root", ".", "test-only SFTP working directory")
 	flag.Parse()
+	dir, err := filepath.Abs(*root)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	_, priv, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -62,11 +69,11 @@ func main() {
 		if err != nil {
 			return
 		}
-		go serve(c, cfg)
+		go serve(c, cfg, dir)
 	}
 }
 
-func serve(c net.Conn, cfg *ssh.ServerConfig) {
+func serve(c net.Conn, cfg *ssh.ServerConfig, root string) {
 	sc, chans, reqs, err := ssh.NewServerConn(c, cfg)
 	if err != nil {
 		return
@@ -93,7 +100,9 @@ func serve(c net.Conn, cfg *ssh.ServerConfig) {
 						if int(4+n+8) <= len(p) {
 							cols := binary.BigEndian.Uint32(p[4+n:])
 							rows := binary.BigEndian.Uint32(p[4+n+4:])
-							ruler(ch, int(cols), int(rows), "pty-req")
+							if os.Getenv("FAKE_SSH_RULER") == "1" {
+								ruler(ch, int(cols), int(rows), "pty-req")
+							}
 						}
 					}
 					req.Reply(true, nil)
@@ -101,11 +110,30 @@ func serve(c net.Conn, cfg *ssh.ServerConfig) {
 					if len(req.Payload) >= 8 {
 						cols := binary.BigEndian.Uint32(req.Payload)
 						rows := binary.BigEndian.Uint32(req.Payload[4:])
-						ruler(ch, int(cols), int(rows), "window-change")
+						if os.Getenv("FAKE_SSH_RULER") == "1" {
+							ruler(ch, int(cols), int(rows), "window-change")
+						}
 					}
 					req.Reply(true, nil)
 				case "shell":
 					req.Reply(true, nil)
+					go fakeShell(ch, ch, root)
+				case "subsystem":
+					var payload struct{ Name string }
+					if ssh.Unmarshal(req.Payload, &payload) != nil || payload.Name != "sftp" {
+						req.Reply(false, nil)
+						continue
+					}
+					req.Reply(true, nil)
+					go func() {
+						server, err := sftp.NewServer(ch, sftp.WithServerWorkingDirectory(root))
+						if err != nil {
+							ch.Close()
+							return
+						}
+						defer server.Close()
+						server.Serve()
+					}()
 				case "exec":
 					if len(req.Payload) >= 4 {
 						n := binary.BigEndian.Uint32(req.Payload)
@@ -124,12 +152,6 @@ func serve(c net.Conn, cfg *ssh.ServerConfig) {
 			}
 		}()
 
-		// Ruler mode for layout debugging; otherwise run the fake shell.
-		if os.Getenv("FAKE_SSH_RULER") == "1" {
-			go io.Copy(ch, ch)
-		} else {
-			go fakeShell(ch, ch)
-		}
 	}
 }
 
@@ -137,16 +159,23 @@ func serve(c net.Conn, cfg *ssh.ServerConfig) {
 // cd and at every prompt, so the sshx file panel can follow terminal cwd.
 //
 // OSC 7 escape: ESC ] 7 ; file://host/path BEL  (BEL = \a)
-func fakeShell(in io.Reader, out io.Writer) {
+func fakeShell(in io.Reader, out io.Writer, root string) {
 	scanner := bufio.NewScanner(terminalReader{in})
-	cwd := "/root"
+	cwd := filepath.ToSlash(root)
+	if !strings.HasPrefix(cwd, "/") {
+		cwd = "/" + cwd
+	}
 	prompt := func() {
 		fmt.Fprintf(out, "\x1b]7;file://localhost%s\x07%s $ ", cwd, cwd)
 	}
 	prompt()
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
-		fmt.Fprintln(out, line)
+		if strings.HasPrefix(line, "__sshx_osc7()") {
+			prompt()
+			continue
+		}
+		fmt.Fprintf(out, "%s\r\n", line)
 		if line == "" {
 			prompt()
 			continue
@@ -161,7 +190,7 @@ func fakeShell(in io.Reader, out io.Writer) {
 			cwd = cleanPath(target)
 			fmt.Fprintf(out, "\x1b]7;file://localhost%s\x07", cwd)
 		case line == "pwd":
-			fmt.Fprintln(out, cwd)
+			fmt.Fprintf(out, "%s\r\n", cwd)
 		default:
 			fmt.Fprintf(out, "fake-sh: %s: command not found\r\n", strings.Fields(line)[0])
 		}

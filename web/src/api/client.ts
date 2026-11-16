@@ -174,6 +174,7 @@ export interface CreateSessionRequest {
 export class ApiError extends Error {
   status: number;
   hostKey?: HostKeyInfo;
+  hint?: string;
   constructor(status: number, message: string, hostKey?: HostKeyInfo) {
     super(message);
     this.status = status;
@@ -195,10 +196,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     let message = `${res.status} ${res.statusText}`;
     let hostKey: HostKeyInfo | undefined;
+    let hint: string | undefined;
     try {
       const body = await res.json();
       if (body.error) message = body.error;
       if (body.hostKey) hostKey = body.hostKey;
+      if (typeof body.hint === "string") hint = body.hint;
     } catch {
       /* non-JSON error body */
     }
@@ -219,7 +222,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       );
       window.location.assign(`/login?next=${next}`);
     }
-    throw new ApiError(res.status, message, hostKey);
+    const error = new ApiError(res.status, message, hostKey);
+    error.hint = hint;
+    throw error;
   }
   if (res.status === 204) return undefined as T;
   return res.json();
@@ -363,22 +368,42 @@ export const api = {
     remotePath: string,
     file: File,
     onProgress?: (loaded: number, total: number) => void,
+    signal?: AbortSignal,
   ) =>
     new Promise<void>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
+      const abort = () => xhr.abort();
+      const finish = (error?: Error) => {
+        signal?.removeEventListener("abort", abort);
+        if (error) reject(error);
+        else resolve();
+      };
+      if (signal?.aborted) {
+        reject(new DOMException("上传已取消", "AbortError"));
+        return;
+      }
       xhr.open(
         "POST",
-        `/api/files/upload?session=${sessionId}&path=${encodeURIComponent(remotePath)}`,
+        `/api/files/upload?session=${encodeURIComponent(sessionId)}&path=${encodeURIComponent(remotePath)}`,
       );
       xhr.setRequestHeader("X-Auth-Token", getToken());
+      xhr.timeout = 30 * 60 * 1000;
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) onProgress?.(e.loaded, e.total);
       };
       xhr.onload = () =>
-        xhr.status >= 200 && xhr.status < 300
-          ? resolve()
-          : reject(new ApiError(xhr.status, parseXhrError(xhr)));
-      xhr.onerror = () => reject(new Error("上传失败:网络错误"));
+        finish(
+          xhr.status >= 200 && xhr.status < 300
+            ? undefined
+            : new ApiError(xhr.status, parseXhrError(xhr)),
+        );
+      xhr.onerror = () =>
+        finish(
+          new Error("上传失败：网络连接中断，请检查工作台与主机连接后重试。"),
+        );
+      xhr.ontimeout = () => finish(new Error("上传超时，请检查网络后重试。"));
+      xhr.onabort = () => finish(new DOMException("上传已取消", "AbortError"));
+      signal?.addEventListener("abort", abort, { once: true });
       xhr.send(file);
     }),
 };
@@ -442,4 +467,12 @@ export interface CommandSuggestion {
   impact: string;
   target: string;
   sessionId: string;
+}
+
+export function connectionError(error: unknown): string {
+  return error instanceof ApiError && error.hint
+    ? `${error.hint}\n详细信息：${error.message}`
+    : error instanceof Error
+      ? error.message
+      : String(error);
 }
