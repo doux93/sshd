@@ -158,7 +158,7 @@ func (m *Manager) ReapIdle(ttl time.Duration) int {
 	m.mu.Lock()
 	var idle []*Session
 	for _, s := range m.sessions {
-		if since, ok := s.Terminal().IdleSince(); ok && time.Since(since) > ttl {
+		if since, ok := s.Terminal().IdleSince(); ok && time.Since(since) >= ttl {
 			idle = append(idle, s)
 		}
 	}

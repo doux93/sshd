@@ -236,6 +236,30 @@ test("mobile touch opens a read-only terminal and never sends keyboard input", a
   await expect
     .poll(() => page.evaluate(() => (window as any).__sshxTest.sockets.length))
     .toBeGreaterThan(0);
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__sshxTest.received))
+    .toContain("/root $");
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+  await info.attach("terminal-layout", {
+    body: JSON.stringify(
+      await page.locator(".xterm").evaluate((el) => ({
+        html: el.outerHTML,
+        rect: el.getBoundingClientRect().toJSON(),
+        children: Array.from(
+          el.querySelectorAll("canvas,.xterm-screen,.xterm-viewport"),
+        ).map((n) => ({
+          tag: n.tagName,
+          rect: n.getBoundingClientRect().toJSON(),
+        })),
+      })),
+    ),
+    contentType: "application/json",
+  });
   await page.locator(".xterm-screen").tap();
   const before = await page.evaluate(() => (window as any).__sshxTest.binary);
   await page.keyboard.type("do-not-send");

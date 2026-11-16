@@ -201,12 +201,19 @@ export function seedAlert(app: App, nodeId: string, label: string) {
 export async function watchSockets(page: Page) {
   await page.addInitScript(() => {
     const Native = window.WebSocket;
-    const state = { sockets: [] as WebSocket[], binary: 0 };
+    const state = { sockets: [] as WebSocket[], binary: 0, received: "" };
     (window as any).__sshxTest = state;
     window.WebSocket = class extends Native {
       constructor(url: string | URL, protocols?: string | string[]) {
         super(url, protocols);
         state.sockets.push(this);
+        this.addEventListener("message", (event) => {
+          if (event.data instanceof ArrayBuffer) {
+            state.received += new TextDecoder().decode(
+              new Uint8Array(event.data).subarray(1),
+            );
+          }
+        });
       }
       send(data: string | ArrayBufferLike | Blob | ArrayBufferView) {
         if (typeof data !== "string") state.binary++;

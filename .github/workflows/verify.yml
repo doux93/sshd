@@ -83,5 +83,6 @@ jobs:
         with:
           name: sshx-${{ runner.os }}
           path: .testbin/sshx*
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 14
