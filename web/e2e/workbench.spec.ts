@@ -150,11 +150,15 @@ test("desktop connection test, terminal persistence, reconnect and AI preview", 
   expect(
     await page.getByRole("textbox", { name: "生成的命令" }).inputValue(),
   ).toBe("pwd");
+  await context.grantPermissions(["clipboard-read", "clipboard-write"], {
+    origin: app.url,
+  });
   const before = await page.evaluate(() => (window as any).__sshxTest.binary);
   await page.getByRole("button", { name: "复制命令", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "已复制", exact: true }),
   ).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("pwd");
   expect(await page.evaluate(() => (window as any).__sshxTest.binary)).toBe(
     before,
   );
