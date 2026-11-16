@@ -4,9 +4,16 @@
 
 工作流 [Windows to Linux acceptance](https://github.com/doux93/sshd/actions/workflows/windows-linux.yml) 手动运行时下载指定 Release；自动运行时使用 Verify 工作流成功后生成的同一份 Windows ZIP。两种模式都核对 SHA-256 和 VERSION，再启动包内原生 Windows 可执行文件，不在验收机上重新编译。结果记录包来源和 SHA-256，开发包不冒充已发布版本。
 
-2026-11-16 的 Ubuntu 24.04 [v0.3.0 历史实测](https://github.com/doux93/sshd/actions/runs/43858021729)中，10 个阶段全部通过。该结论只适用于当次环境；详细证据见 [结果 JSON](evidence/windows-linux-v0.3.0.json) 和 [界面截图](images/windows-linux-recovery.png)。
+2026-11-16 的 [v0.3.1 正式包验收](https://github.com/doux93/sshd/actions/runs/43863924570)中，两个 Ubuntu 版本分别通过全部 10 个阶段。
 
-Ubuntu 22.04 / tmux 3.2a 的补充验收发现：v0.3.0 历史回放会再次触发设备属性查询，迟到的响应污染首条 Shell 命令。已加入回放过滤修复与真实浏览器回归，[0.3.1 开发包验收](https://github.com/doux93/sshd/actions/runs/43862729364)在两个版本上均通过全部 10 个阶段；正式包将使用同一流程复核。
+| 远端系统 | OpenSSH 服务端 | tmux | 结果 | 证据 |
+|---|---|---|---|---|
+| Ubuntu 22.04 | `1:8.9p1-3ubuntu0.18` | tmux 3.2a | 10/10 通过 | [JSON](evidence/windows-ubuntu-22.04-v0.3.1.json) · [截图](images/windows-ubuntu-22.04-v0.3.1.png) |
+| Ubuntu 24.04 | `1:9.6p1-3ubuntu13.20` | tmux 3.4 | 10/10 通过 | [JSON](evidence/windows-ubuntu-24.04-v0.3.1.json) · [截图](images/windows-ubuntu-24.04-v0.3.1.png) |
+
+两个结果记录的 Windows 包 SHA-256 均为 `f2efb82249ff5da1b148f65fa01c392054d41845c84828ddb931979c6a003f39`，与 [v0.3.1 Release](https://github.com/doux93/sshd/releases/tag/v0.3.1) 的下载包一致。
+
+此次补测发现并修复了 v0.3.0 在 Ubuntu 22.04 / tmux 3.2a 下的问题：历史回放再次触发设备属性查询，迟到的响应进入 Shell，干扰首条命令。修复只过滤历史查询，实时查询与显示控制保留。[旧版失败证据](evidence/windows-ubuntu-22.04-v0.3.0-failure.json)已保留；此前 Ubuntu 24.04 的通过结果只代表该次环境，见[历史结果](evidence/windows-linux-v0.3.0.json)。
 
 ## 环境与范围
 

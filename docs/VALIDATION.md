@@ -2,14 +2,14 @@
 
 本机环境：Linux amd64、Go 1.26.3、Node.js 24.22.1、npm 11.9.0。
 
-GitHub Actions：Ubuntu 与 Windows amd64，Go 1.26.3、Node.js 24。正式版代码提交 `16d60d26cb0eca96e3b218917b93f2190c756279` 的 [v0.3.0 完整验收与发布](https://github.com/doux93/sshd/actions/runs/43855180100) 三个任务全部成功。以上为 v0.3.0 的原发布记录；后续 Ubuntu 22.04 补测发现回放兼容问题，修复后的 [0.3.1 开发包](https://github.com/doux93/sshd/actions/runs/43862729364)在 Ubuntu 22.04、24.04 均通过全部 10 个验收阶段，正式包结果待补充。
+GitHub Actions：Ubuntu 与 Windows amd64，Go 1.26.3、Node.js 24。正式版代码提交 `ff8a7869b7183171b020d03eaa3d10b709fa6402` 的 [v0.3.1 完整验证与发布](https://github.com/doux93/sshd/actions/runs/43863394998) 三个任务全部成功。
 
-固定下载：[sshx v0.3.0](https://github.com/doux93/sshd/releases/tag/v0.3.0)。已验证两个 ZIP 可完整解压，只包含程序、快速开始、VERSION 和 BUILD.txt；校验文件、打包产物与 GitHub Release 公布的 SHA-256 一致。Linux 包实际运行 `--version` 输出 0.3.0 及上述提交；Windows 原生版本与本地启动在 CI 验证。
+固定下载：[sshx v0.3.1](https://github.com/doux93/sshd/releases/tag/v0.3.1)。已核对两个 ZIP 的完整性、VERSION 和 BUILD.txt；包内只包含程序、快速开始、VERSION 和 BUILD.txt。打包产物与 GitHub Release 公布的 SHA-256 一致，校验文件本身的哈希也与 Release 一致。Linux 包实际运行 `--version` 输出 0.3.1 及上述提交；Windows 原生版本与启动在 CI 验证。
 
 | 下载包 | SHA-256 |
 |---|---|
-| `sshx-Linux-amd64.zip` | `d698aa3f1328217210d0f3938a858c0abfc8254a738b591b516e49a6cc668a90` |
-| `sshx-Windows-amd64.zip` | `37c29c8decd9dc4ca483973052b3ebb758c3e2b0e7992f0836f3c2e24ab442f9` |
+| `sshx-Linux-amd64.zip` | `5d2a5331cfbb186d959e39cff77b0575855b954db3a23140ece04ba1d713da0b` |
+| `sshx-Windows-amd64.zip` | `f2efb82249ff5da1b148f65fa01c392054d41845c84828ddb931979c6a003f39` |
 
 ## 已通过
 
@@ -25,6 +25,23 @@ GitHub Actions：Ubuntu 与 Windows amd64，Go 1.26.3、Node.js 24。正式版�
 | `git diff --check` | 通过 |
 
 `sshx/web` 与 `internal/testssh` 包没有 Go 测试文件，因此 Go JSON 日志中出现该包的 `skip` 状态；这不是集成测试被跳过。前端协议测试通过 npm 单独运行。
+
+## 0.3.1 Windows → Ubuntu 22.04 / 24.04 验收
+
+[正式包验收运行](https://github.com/doux93/sshd/actions/runs/43863924570)的两个独立任务均成功。使用 Verify 工作流生成的原生 Windows ZIP，没有在验收机上重新编译；两个结果记录的 SHA-256 均为 `f2efb82249ff5da1b148f65fa01c392054d41845c84828ddb931979c6a003f39`，与正式 Release 的 Windows ZIP 完全一致。代码与验收脚本提交均为 `ff8a7869b7183171b020d03eaa3d10b709fa6402`。
+
+| 远端系统 | OpenSSH 服务端 | tmux | 结果 | 证据 |
+|---|---|---|---|---|
+| Ubuntu 22.04 | `1:8.9p1-3ubuntu0.18` | tmux 3.2a | 10/10 通过 | [JSON](evidence/windows-ubuntu-22.04-v0.3.1.json) · [截图](images/windows-ubuntu-22.04-v0.3.1.png) |
+| Ubuntu 24.04 | `1:9.6p1-3ubuntu13.20` | tmux 3.4 | 10/10 通过 | [JSON](evidence/windows-ubuntu-24.04-v0.3.1.json) · [截图](images/windows-ubuntu-24.04-v0.3.1.png) |
+
+- 两组均验证真实 SSH 指纹确认、错误密码拒绝、草稿测试不保存、Windows 凭据库密码登录及中文/空格私钥路径。
+- 浏览器首条命令正确执行；2 MiB 随机二进制文件经 UI 上传后，Linux 实际文件、下载内容及重命名后的内容哈希一致。
+- 实际关闭 SSH TCP 流量连接及强制结束 Windows 工作台后，分别恢复原来的 Shell PID、后台任务 PID、环境变量与工作目录。进程重启后读取原 Windows 凭据，旧工作台 Token 被拒绝。
+- 恢复后的终端能从会话库打开；未确认的远端结束操作被拒绝，确认后实际 tmux 会话消失。
+- 客户端为 Windows Server 2025 + Chromium；服务端为 WSL2 上的真实 Ubuntu/OpenSSH/SFTP/tmux。测试不等同于用户 Windows 10/11 真机、独立远端服务器、VPN、跳板或实际网络延迟验收。
+
+本轮先在 v0.3.0 的 Ubuntu 22.04 / tmux 3.2a 上重现失败，再修复并完成开发包与正式包复验。[失败证据](evidence/windows-ubuntu-22.04-v0.3.0-failure.json)记录浏览器发送的迟到设备属性响应进入 Shell，导致首条命令失败。0.3.1 只移除历史回放中的设备属性查询；实时查询和颜色、光标等显示控制保留。Go 回归同时验证历史过滤、原缓冲区不被修改，以及实时 WebSocket 输出不被过滤。
 
 ## v0.3.0 Windows → Ubuntu 24.04 历史验收
 

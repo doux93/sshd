@@ -1,0 +1,54 @@
+{
+  "release": "v0.3.0",
+  "distribution": "Ubuntu-22.04",
+  "scope": "Native Windows executable -> WSL2 Ubuntu OpenSSH/tmux",
+  "checks": [
+    {
+      "name": "Isolated Ubuntu OpenSSH server and disposable login created",
+      "details": {
+        "distribution": "Ubuntu-22.04",
+        "osRelease": "ubuntu|22.04",
+        "openssh": "openssh-server\t1:8.9p1-3ubuntu0.18",
+        "tmux": "tmux 3.2a"
+      }
+    },
+    {
+      "name": "Real host-key confirmation and wrong-password rejection; draft test creates no host/session"
+    },
+    {
+      "name": "Windows saved credential opens real Linux tmux shell and background job",
+      "details": {
+        "shellPID": "409",
+        "jobPID": "453"
+      }
+    }
+  ],
+  "success": false,
+  "executable": "sshx 0.3.0 (16d60d26cb0eca96e3b218917b93f2190c756279)",
+  "linux": "Linux 6.18.54.1-microsoft-standard-WSL2",
+  "osRelease": "ubuntu|22.04",
+  "openssh": "openssh-server\t1:8.9p1-3ubuntu0.18",
+  "tmux": "tmux 3.2a",
+  "browserInput": {
+    "attached": 1,
+    "receivedBytes": 3681,
+    "sentBytes": 84,
+    "input": "\u001b[>0;276;0cprintf '\\nUI_SUM:%s\\n' \"$((17+25))\"\r",
+    "events": [
+      {
+        "event": "attached",
+        "ms": 811
+      },
+      {
+        "event": "keyboard-start",
+        "ms": 1001
+      }
+    ],
+    "focusBefore": "xterm-helper-textarea"
+  },
+  "error": "Browser keyboard did not reach Linux shell",
+  "terminalTail": "\r%s:%s:%s:%s\\n' \"$$\" \"$SSHX_ACCEPTANCE\" \"$PWD\" \"$SSHX_JOB\"\" && printf '\\nINITIAL:%\r\n\u001b[?2004l[1] 453\r\n\r\nINITIAL:409:keep_74071937e99a:/home/sx_74071937e99a:453\r\nsx_74071937e99a@runnervmm7ud1:~$ \u001b[?2004h\rsx_74071937e99a@runnervmm7ud1:~$ \u001b[K\u001b[?7727h0;276;0c\u0007printf '\\nUI_SUM:%s\\n' \"$((17+25))\"\r\n\u001b[?2004l0: command not found\r\n276: command not found\r\n0cprintf: command not found\r\nsx_74071937e99a@runnervmm7ud1:~$ \u001b[?2004h",
+  "focusAfter": "xterm-helper-textarea",
+  "workflowRun": "https://github.com/doux93/sshd/actions/runs/43861075849",
+  "acceptanceCommit": "583fb253bbeed6b35ec0975a8bec4632a2cd1640"
+}

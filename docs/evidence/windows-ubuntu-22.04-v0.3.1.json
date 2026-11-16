@@ -1,0 +1,88 @@
+{
+  "release": "v0.3.1",
+  "packageSource": "verified workflow artifact",
+  "distribution": "Ubuntu-22.04",
+  "scope": "Native Windows executable -> WSL2 Ubuntu OpenSSH/tmux",
+  "checks": [
+    {
+      "name": "Isolated Ubuntu OpenSSH server and disposable login created",
+      "details": {
+        "distribution": "Ubuntu-22.04",
+        "osRelease": "ubuntu|22.04",
+        "openssh": "openssh-server\t1:8.9p1-3ubuntu0.18",
+        "tmux": "tmux 3.2a"
+      }
+    },
+    {
+      "name": "Real host-key confirmation and wrong-password rejection; draft test creates no host/session"
+    },
+    {
+      "name": "Windows saved credential opens real Linux tmux shell and background job",
+      "details": {
+        "shellPID": "418",
+        "jobPID": "462"
+      }
+    },
+    {
+      "name": "Native Windows Chromium terminal keyboard reaches Linux shell"
+    },
+    {
+      "name": "2 MiB SFTP browser upload, Linux-side hash, download and rename with Chinese/spaced filenames",
+      "details": {
+        "bytes": 2097152,
+        "sha256": "ae84854a01e08142e75e2cf09911c553dfbe10b9009e04c2bd846b8f79eab712"
+      }
+    },
+    {
+      "name": "Windows private-key path with Chinese characters/spaces authenticates to Linux"
+    },
+    {
+      "name": "Actual SSH TCP interruption and resume preserve shell PID, background job PID, environment and directory"
+    },
+    {
+      "name": "Force-killed Windows executable restarts on same database and retrieves saved credential; original Linux shell/job survive"
+    },
+    {
+      "name": "Browser finds recovered terminal after executable restart"
+    },
+    {
+      "name": "Remote termination requires confirmation, ends actual tmux session, and saved-host cleanup succeeds"
+    }
+  ],
+  "success": true,
+  "packageSHA256": "f2efb82249ff5da1b148f65fa01c392054d41845c84828ddb931979c6a003f39",
+  "executable": "sshx 0.3.1 (ff8a7869b7183171b020d03eaa3d10b709fa6402)",
+  "linux": "Linux 6.18.54.1-microsoft-standard-WSL2",
+  "osRelease": "ubuntu|22.04",
+  "openssh": "openssh-server\t1:8.9p1-3ubuntu0.18",
+  "tmux": "tmux 3.2a",
+  "browserInput": {
+    "attached": 3,
+    "receivedBytes": 13960,
+    "sentBytes": 72,
+    "input": "printf '\\nUI_SUM:%s\\n' \"$((17+25))\"\r",
+    "events": [
+      {
+        "event": "attached",
+        "ms": 3259
+      },
+      {
+        "event": "keyboard-start",
+        "ms": 4007
+      },
+      {
+        "event": "attached",
+        "ms": 8478
+      },
+      {
+        "event": "attached",
+        "ms": 9603
+      }
+    ],
+    "focusBefore": "xterm-helper-textarea"
+  },
+  "workflowRun": "https://github.com/doux93/sshd/actions/runs/43863924570",
+  "acceptanceCommit": "ff8a7869b7183171b020d03eaa3d10b709fa6402",
+  "releaseURL": "https://github.com/doux93/sshd/releases/tag/v0.3.1",
+  "matchesPublishedWindowsPackage": true
+}
