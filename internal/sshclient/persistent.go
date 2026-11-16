@@ -5,9 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"sshx/internal/session"
 	"strings"
 	"time"
+
+	"sshx/internal/session"
 )
 
 var ErrTmuxUnavailable = errors.New("远端未找到 tmux，请安装 tmux 后重试，或关闭主机的终端保活选项")

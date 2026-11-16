@@ -26,10 +26,7 @@ export function RecoveryList({ onOpen }: { onOpen(): void }) {
     }
   }
   return (
-    <section
-      aria-label="远端保活终端"
-      className="mt-4 border-t border-slate-700 pt-4"
-    >
+    <section aria-label="远端保活终端" className="space-y-2">
       <h3 className="text-sm font-semibold">远端保活终端</h3>
       <p className="my-2 text-xs leading-5 text-slate-400">
         工作台重启后可重新接入。远端需安装 tmux，主机重启或进程退出后不能恢复。

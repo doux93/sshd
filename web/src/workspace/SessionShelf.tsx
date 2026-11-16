@@ -6,6 +6,7 @@ import { Icon } from "../components/Icon";
 export function SessionShelf({ onClose }: { onClose: () => void }) {
   const {
     sessions,
+    recoveries,
     openIds,
     setActive,
     refresh,
@@ -49,8 +50,18 @@ export function SessionShelf({ onClose }: { onClose: () => void }) {
         </button>
       </header>
       <div className="min-h-0 flex-1 overflow-auto p-3 space-y-2">
+        {recoveries.length > 0 && <RecoveryList onOpen={onClose} />}
+        {recoveries.length > 0 && (
+          <h3 className="border-t border-slate-700 pt-4 text-sm font-semibold">
+            工作台会话
+          </h3>
+        )}
         {sessions.length === 0 ? (
-          <p className="empty-copy">还没有会话，先连接一台主机。</p>
+          <p className="empty-copy">
+            {recoveries.length
+              ? "尚无工作台连接，可恢复上方保活终端或连接主机。"
+              : "还没有会话，先连接一台主机。"}
+          </p>
         ) : (
           sessions.map((s) => (
             <article
@@ -107,7 +118,7 @@ export function SessionShelf({ onClose }: { onClose: () => void }) {
             </article>
           ))
         )}
-        <RecoveryList onOpen={onClose} />
+        {recoveries.length === 0 && <RecoveryList onOpen={onClose} />}
       </div>
       {target && (
         <div className="dialog-backdrop">

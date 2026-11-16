@@ -553,6 +553,7 @@ test("recovery UI guards endpoint changes and separates terminate from forgettin
   await page.getByRole("button", { name: "会话库", exact: true }).click();
   const card = page.getByRole("article", { name: "保活终端 Recovery entry" });
   await expect(card).toContainText("待接入");
+  await expect(card).toBeInViewport();
   await card.getByRole("button", { name: "恢复终端", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText(
     "主机地址、用户或跳板路径已变化",
