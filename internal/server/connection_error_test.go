@@ -19,6 +19,7 @@ func TestDialErrorHint(t *testing.T) {
 		{"timeout", &net.OpError{Op: "dial", Net: "tcp", Err: os.ErrDeadlineExceeded}, "timeout"},
 		{"refused", fmt.Errorf("dial: %w", syscall.ECONNREFUSED), "refused"},
 		{"key", &os.PathError{Op: "open", Path: "key", Err: os.ErrNotExist}, "key_file"},
+		{"wrapped_key", fmt.Errorf("read private key: %w", &os.PathError{Op: "open", Path: "key", Err: os.ErrNotExist}), "key_file"},
 		{"auth", errors.New("ssh: handshake failed: unable to authenticate, attempted methods [none password]"), "authentication"},
 		{"locked", errors.New("vault is locked"), "vault_locked"},
 		{"agent", errors.New("SSH agent unavailable"), "agent"},

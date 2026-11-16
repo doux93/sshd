@@ -18,7 +18,7 @@ func dialErrorHint(err error) (string, string) {
 		return "timeout", "连接超时，请检查地址、端口、防火墙，以及代理或跳板机是否可达。"
 	case errors.Is(err, syscall.ECONNREFUSED):
 		return "refused", "目标拒绝连接，请确认 SSH 服务已启动，端口填写正确。"
-	case os.IsNotExist(err):
+	case errors.Is(err, os.ErrNotExist):
 		return "key_file", "找不到私钥文件，请检查运行 sshx 的机器上的文件路径。"
 	}
 	message := strings.ToLower(err.Error())
