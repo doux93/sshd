@@ -226,6 +226,7 @@ func TestWebSocketRejectsBadToken(t *testing.T) {
 
 func TestReattachReplaysRingBuffer(t *testing.T) {
 	mgr := session.NewManager()
+	defer mgr.CloseAll()
 	tokenAuth := auth.NewToken()
 	srv := New(Deps{Sessions: mgr, Authn: tokenAuth, Log: slog.New(slog.NewTextHandler(io.Discard, nil))})
 
@@ -236,7 +237,7 @@ func TestReattachReplaysRingBuffer(t *testing.T) {
 	}
 
 	// Produce output before anyone attaches.
-	backend.tio.in.Write([]byte("history-line"))
+	backend.tio.in.Write([]byte("history\x1b[>c-line\x1b[c\x1b[31mred\x1b[0m"))
 	time.Sleep(50 * time.Millisecond) // let the read pump buffer it
 
 	ts := httptest.NewServer(srv.Handler())
@@ -259,7 +260,7 @@ func TestReattachReplaysRingBuffer(t *testing.T) {
 	conn.Write(ctx, websocket.MessageText, attach)
 
 	var got []byte
-	want := []byte("history-line")
+	want := []byte("history-line\x1b[31mred\x1b[0m")
 	for len(got) < len(want) {
 		typ, data, err := conn.Read(ctx)
 		if err != nil {
@@ -271,5 +272,22 @@ func TestReattachReplaysRingBuffer(t *testing.T) {
 	}
 	if !bytes.Equal(got, want) {
 		t.Fatalf("replay = %q, want %q", got, want)
+	}
+
+	// The same query in NEW output still reaches the browser for a fresh reply.
+	live := []byte("live\x1b[>c")
+	backend.tio.in.Write(live)
+	got = nil
+	for len(got) < len(live) {
+		typ, data, err := conn.Read(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if typ == websocket.MessageBinary && len(data) > 1 && data[0] == 1 {
+			got = append(got, data[1:]...)
+		}
+	}
+	if !bytes.Equal(got, live) {
+		t.Fatalf("live query was filtered: %q", got)
 	}
 }

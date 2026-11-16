@@ -16,6 +16,8 @@ assert.equal(process.env.GITHUB_ACTIONS, 'true', 'Disposable GitHub runner requi
 const distribution = process.env.WSL_DISTRO || 'Ubuntu-24.04';
 assert.ok(['Ubuntu-22.04', 'Ubuntu-24.04'].includes(distribution), 'Unsupported acceptance distribution');
 const root = resolve(__dirname, '..');
+const packageVersion = fs.readFileSync(join(root, '.acceptance-download/unpacked/VERSION'), 'utf8').trim();
+assert.match(packageVersion, /^\d+\.\d+\.\d+(?:-[a-z0-9.]+)?$/);
 const output = join(root, 'acceptance-results');
 fs.mkdirSync(output, { recursive: true });
 const local = fs.mkdtempSync(join(tmpdir(), 'sshx 中文 验收 '));
@@ -24,7 +26,8 @@ const user = 'sx_' + runID;
 const remote = '/tmp/sshx-acceptance-' + runID;
 const password = randomBytes(24).toString('hex');
 const envValue = 'keep_' + runID;
-const evidence = { release: process.env.RELEASE_TAG || 'v0.3.0', distribution, scope: 'Native Windows executable -> WSL2 Ubuntu OpenSSH/tmux', checks: [], success: false };
+const evidence = { release: 'v' + packageVersion, packageSource: process.env.PACKAGE_SOURCE || 'published release', distribution, scope: 'Native Windows executable -> WSL2 Ubuntu OpenSSH/tmux', checks: [], success: false };
+evidence.packageSHA256 = createHash('sha256').update(fs.readFileSync(join(root, '.acceptance-download/sshx-Windows-amd64.zip'))).digest('hex');
 const wsClients = new Set();
 const proxySockets = new Set();
 let app, url, browser, page, terminal, proxy, fixtureStarted = false;
@@ -243,6 +246,7 @@ printf '%s' "$port"
     await page.keyboard.type("printf '\\nUI_SUM:%s\\n' \"$((17+25))\"");
     await page.keyboard.press('Enter');
     await until(() => terminal.output.includes('UI_SUM:42'), 'Browser keyboard did not reach Linux shell');
+    assert.doesNotMatch(browserInput.input, /\x1b\[[?>=][0-9;]*c/, 'Replayed device query generated a late terminal reply');
     check('Native Windows Chromium terminal keyboard reaches Linux shell');
 
     const payload = randomBytes(2 * 1024 * 1024);

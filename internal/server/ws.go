@@ -227,7 +227,7 @@ func (c *wsConn) attach(ctx context.Context, msg controlMsg) {
 		Type: "size", ChannelID: msg.ChannelID,
 		Cols: curCols, Rows: curRows,
 	})
-	c.writeBinary(ctx, msg.ChannelID, att.Replay)
+	c.writeBinary(ctx, msg.ChannelID, screenReplay(att.Replay))
 
 	go func() {
 		defer close(ch.done)

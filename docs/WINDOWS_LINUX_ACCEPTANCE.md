@@ -2,9 +2,11 @@
 
 主要使用场景是 Windows 本地运行 `sshx.exe`，通过浏览器操作 Linux SSH 服务器。
 
-工作流 [Windows to Linux acceptance](https://github.com/doux93/sshd/actions/workflows/windows-linux.yml) 下载指定的已发布 Windows ZIP，核对 SHA-256 和 VERSION，再启动其中的原生 Windows 可执行文件。它不以重新编译的开发程序代替发布包。
+工作流 [Windows to Linux acceptance](https://github.com/doux93/sshd/actions/workflows/windows-linux.yml) 手动运行时下载指定 Release；自动运行时使用 Verify 工作流成功后生成的同一份 Windows ZIP。两种模式都核对 SHA-256 和 VERSION，再启动包内原生 Windows 可执行文件，不在验收机上重新编译。结果记录包来源和 SHA-256，开发包不冒充已发布版本。
 
 2026-11-16 已完成 [v0.3.0 实测](https://github.com/doux93/sshd/actions/runs/43858021729)，10 个阶段全部通过。发布程序未发现需要修复的问题；详细证据见 [结果 JSON](evidence/windows-linux-v0.3.0.json) 和 [界面截图](images/windows-linux-recovery.png)。
+
+Ubuntu 22.04 / tmux 3.2a 的补充验收发现：v0.3.0 历史回放会再次触发设备属性查询，迟到的响应污染首条 Shell 命令。已加入回放过滤修复与真实浏览器回归，修复版正在验证。
 
 ## 环境与范围
 
