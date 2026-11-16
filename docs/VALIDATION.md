@@ -2,7 +2,14 @@
 
 本机环境：Linux amd64、Go 1.26.3、Node.js 24.22.1、npm 11.9.0。
 
-GitHub Actions：Ubuntu 与 Windows amd64，Go 1.26.3、Node.js 24。0.3.0 开发验收已经通过真实 OpenSSH/tmux 恢复、竞态检查、前端交互和两套操作系统的浏览器回归；正式发布的提交、下载包校验和最终验收链接将在发布完成后补充。最新布局开发构建：[完整检查](https://github.com/doux93/sshd/actions/runs/43854562955)。
+GitHub Actions：Ubuntu 与 Windows amd64，Go 1.26.3、Node.js 24。正式版代码提交 `16d60d26cb0eca96e3b218917b93f2190c756279` 的 [v0.3.0 完整验收与发布](https://github.com/doux93/sshd/actions/runs/43855180100) 三个任务全部成功。后续提交仅更新本文与实际界面截图。
+
+固定下载：[sshx v0.3.0](https://github.com/doux93/sshd/releases/tag/v0.3.0)。已验证两个 ZIP 可完整解压，只包含程序、快速开始、VERSION 和 BUILD.txt；校验文件、打包产物与 GitHub Release 公布的 SHA-256 一致。Linux 包实际运行 `--version` 输出 0.3.0 及上述提交；Windows 原生版本与本地启动在 CI 验证。
+
+| 下载包 | SHA-256 |
+|---|---|
+| `sshx-Linux-amd64.zip` | `d698aa3f1328217210d0f3938a858c0abfc8254a738b591b516e49a6cc668a90` |
+| `sshx-Windows-amd64.zip` | `37c29c8decd9dc4ca483973052b3ebb758c3e2b0e7992f0836f3c2e24ab442f9` |
 
 ## 已通过
 

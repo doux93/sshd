@@ -10,6 +10,8 @@
 
 ![深色分屏工作台实际浏览器截图](docs/images/dark-split.png)
 
+![远端保活终端恢复入口实际浏览器截图](docs/images/recovery-shelf.png)
+
 ## 工作台怎么用
 
 需要跨工作台重启保留任务时，在主机高级设置开启“终端保活与恢复（tmux）”。远端需预装 tmux，默认关闭；恢复、断开保留、结束和忘记记录的区别见 [终端恢复指南](docs/TERMINAL_RECOVERY.md)。
