@@ -2,7 +2,14 @@
 
 本机环境：Linux amd64、Go 1.26.3、Node.js 24.22.1、npm 11.9.0。
 
-GitHub Actions：Ubuntu 与 Windows amd64，Go 1.26.3、Node.js 24。0.2.0 开发版提交 `bc34960f76e784665242f115b4f2c56c4fe7d0bd` 的 [跨平台验收](https://github.com/doux93/sshd/actions/runs/43839264156) 已通过；正式发布时会对版本化源码再次完成同一套检查。
+GitHub Actions：Ubuntu 与 Windows amd64，Go 1.26.3、Node.js 24。正式版代码提交 `3acc57ba38aec3e5c86e32f8ca17c053d66dd365` 的 [v0.2.1 完整验收与发布](https://github.com/doux93/sshd/actions/runs/43840830264) 三个任务全部成功。后续提交仅更新本文与实际界面截图。
+
+固定下载：[sshx v0.2.1](https://github.com/doux93/sshd/releases/tag/v0.2.1)。已验证两个 ZIP 可完整解压，只包含程序、快速开始、VERSION 和 BUILD.txt；校验文件、打包产物与 GitHub Release 公布的 SHA-256 一致。Linux 下载包实际运行 `--version` 输出 0.2.1 及上述提交；Windows 原生版本与本地启动在 CI 验证。
+
+| 下载包 | SHA-256 |
+|---|---|
+| `sshx-Linux-amd64.zip` | `dded49dcda9ae3254d39080b7745d17ed229963ef7ea613ed7756a03e3a3e958` |
+| `sshx-Windows-amd64.zip` | `3a0a0d5fc924fc425298fd5754555d96372ddd95abb46a12033009e468c0e0f2` |
 
 ## 已通过
 
@@ -19,7 +26,7 @@ GitHub Actions：Ubuntu 与 Windows amd64，Go 1.26.3、Node.js 24。0.2.0 开�
 
 `sshx/web` 包没有 Go 测试文件，因此 Go JSON 日志中出现该包的 `skip` 状态；这不是集成测试被跳过。前端协议测试通过 npm 单独运行。
 
-## 0.2.0 新增验收
+## 0.2.x 新增验收
 
 - Windows 本地启动：`--open-browser=false` 启动原生程序，未认证请求返回 401，启动地址中的 Token 能访问工作台；版本输出与 VERSION 一致。系统默认浏览器自动打开属于实现功能，未在 CI 桌面交互验收。
 - 明暗主题切换及刷新记忆，切换不新增 attach/detach；左右/上下分屏各自输入，只改变目标会话目录；900px 窗口没有页面横向溢出。
@@ -51,7 +58,7 @@ GitHub Actions：Ubuntu 与 Windows amd64，Go 1.26.3、Node.js 24。0.2.0 开�
 - AI：readonly/confirm 拒绝任意 Shell，trusted 的权限行为，生成命令的换行和控制字符校验。
 - 前端：从接口初始化认证模式、清理旧 Token、监控对象解析、异常帧处理、回放前重置、慢订阅者重新附着、主动断开取消重连。
 
-另以本次构建的 Linux 二进制，在临时数据库上完成了 HTTP 冒烟检查：首次密码文件初始化和删除、HTML/CSP、认证状态、错误密码拒绝、登录与默认 Secure/HttpOnly Cookie、带加密凭据的节点保存、监控及 AI 配置保存、跨来源写入拒绝、退出后凭据失效、重启后凭据库重新锁定和节点保留，以及 SIGTERM 正常退出。
+前一轮修订另以 Linux 二进制，在临时数据库上完成了 HTTP 冒烟检查：首次密码文件初始化和删除、HTML/CSP、认证状态、错误密码拒绝、登录与默认 Secure/HttpOnly Cookie、带加密凭据的节点保存、监控及 AI 配置保存、跨来源写入拒绝、退出后凭据失效、重启后凭据库重新锁定和节点保留，以及 SIGTERM 正常退出。
 
 ## 自动化浏览器与 Windows 验收
 
@@ -66,7 +73,7 @@ Playwright 使用真实生产构建、HTTP/WebSocket、临时数据库和本机 
 
 检查实际截图时发现手机高像素密度下 WebGL 空白，已将 passive 视图改为 DOM 渲染并验证截图。Windows 测试还暴露并修复了空闲时间恰好等于 TTL 时的回收边界。
 
-工作流保存 `browser-report-Linux`、`browser-report-Windows` 和对应程序 `sshx-Linux`、`sshx-Windows`，保留 14 天。图形界面截图见 README。浏览器使用 Chromium；手机尺寸、触摸与像素密度模拟不等同于真机验收，也未验证完整 PWA 缓存版本升级。
+工作流报告和开发构建附件保留 14 天；正式版 ZIP、版本信息和校验值另发布到 Releases，不依赖临时附件。图形界面截图见 README。浏览器使用 Chromium；手机尺寸、触摸与像素密度模拟不等同于真机验收，也未验证完整 PWA 缓存版本升级。
 
 ## 尚未完成的实机验收
 

@@ -2,7 +2,7 @@
 
 面向个人的 SSH 工作台：Go 服务端保持会话，React + xterm.js 提供浏览器终端，配套 SFTP、监控、告警和 AI 工具。
 
-0.2.0 增加明暗主题、双终端分屏、常用命令收藏、可取消重试的上传队列，以及首次连接引导。保留会话管理、移动只读、告警、AI 助手与既有安全修复。变化见 [修订记录](docs/CHANGELOG.md)，使用说明见 [产品体验更新](docs/PRODUCT_UPDATE.md)。
+0.2.1 包含明暗主题、双终端分屏、常用命令收藏、可取消重试的上传队列，以及首次连接引导，并补齐连接错误提示。保留会话管理、移动只读、告警、AI 助手与既有安全修复。变化见 [修订记录](docs/CHANGELOG.md)，使用说明见 [产品体验更新](docs/PRODUCT_UPDATE.md)。
 
 [下载 Windows / Linux 版本](https://github.com/doux93/sshd/releases/latest) · [快速开始](docs/QUICKSTART.md)
 
