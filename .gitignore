@@ -25,3 +25,5 @@ web/tsconfig.tsbuildinfo
 web/test-results/
 web/playwright-report/
 /release-dist/
+/.acceptance-download/
+/acceptance-results/

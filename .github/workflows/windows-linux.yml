@@ -1,0 +1,67 @@
+name: Windows to Linux acceptance
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/windows-linux.yml', 'scripts/windows-linux-acceptance.cjs']
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Published release to test
+        default: v0.3.0
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    name: Windows executable against Ubuntu OpenSSH
+    runs-on: windows-2025
+    timeout-minutes: 25
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag || 'v0.3.0' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Download and verify the published Windows package
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ($env:RELEASE_TAG -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+$') { throw 'Invalid release tag' }
+          gh release download $env:RELEASE_TAG --pattern 'sshx-Windows-amd64.zip*' --dir .acceptance-download
+          if ($LASTEXITCODE -ne 0) { throw 'Release download failed' }
+          $zip = '.acceptance-download/sshx-Windows-amd64.zip'
+          $expected = ((Get-Content "$zip.sha256" -Raw).Trim() -split '\s+')[0]
+          if ((Get-FileHash $zip -Algorithm SHA256).Hash.ToLower() -ne $expected) { throw 'Package hash mismatch' }
+          Expand-Archive $zip .acceptance-download/unpacked
+          if ((Get-Content .acceptance-download/unpacked/VERSION -Raw).Trim() -ne $env:RELEASE_TAG.Substring(1)) { throw 'Package version mismatch' }
+      - uses: Vampire/setup-wsl@4c48163d9f981914dd8caa0fc335fe19cca5bff4 # v7.2.0
+        with:
+          distribution: Ubuntu-24.04
+          wsl-version: '2'
+          additional-packages: openssh-server tmux python3
+      - name: Install browser acceptance dependencies
+        shell: pwsh
+        run: |
+          npm ci --prefix web
+          if ($LASTEXITCODE -ne 0) { throw 'npm ci failed' }
+          Set-Location web
+          npx playwright install chromium
+          if ($LASTEXITCODE -ne 0) { throw 'Chromium installation failed' }
+      - name: Exercise native Windows program against real Linux services
+        shell: pwsh
+        run: node scripts/windows-linux-acceptance.cjs
+      - name: Acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-linux-acceptance
+          path: acceptance-results/
+          if-no-files-found: warn
+          retention-days: 14
