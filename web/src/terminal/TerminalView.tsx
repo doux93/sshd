@@ -111,10 +111,18 @@ export function TerminalView({
     term.loadAddon(new Unicode11Addon());
     term.unicode.activeVersion = "11";
     term.open(container);
-    try {
-      term.loadAddon(new WebglAddon());
-    } catch {
-      // WebGL unavailable (old GPU/driver): xterm falls back to DOM/canvas.
+    // Passive/mobile viewers favor reliable text rendering over GPU throughput.
+    // WebGL can render blank at high DPR even after replay bytes have arrived.
+    if (mode !== "passive") {
+      let webgl: WebglAddon | undefined;
+      try {
+        webgl = new WebglAddon();
+        const addon = webgl;
+        addon.onContextLoss(() => addon.dispose());
+        term.loadAddon(addon);
+      } catch {
+        webgl?.dispose(); // Retain xterm's DOM renderer when WebGL is unavailable.
+      }
     }
     // A passive client renders at whatever geometry the PTY already has, so
     // it must not fit to its own container — it waits for the server's size.

@@ -152,10 +152,25 @@ test("desktop connection test, terminal persistence, reconnect and AI preview", 
   ).toBe("pwd");
   const before = await page.evaluate(() => (window as any).__sshxTest.binary);
   await page.getByRole("button", { name: "复制命令", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: "已复制", exact: true }),
+  ).toBeVisible();
   expect(await page.evaluate(() => (window as any).__sshxTest.binary)).toBe(
     before,
   );
   await page.getByRole("button", { name: "关闭 AI 助手" }).click();
+  await page.locator(".xterm-screen").evaluate((el) => {
+    const canvas = Array.from(el.querySelectorAll("canvas")).find((c) =>
+      c.getContext("webgl2"),
+    );
+    if (!canvas) throw new Error("Expected accelerated desktop renderer");
+    const extension = canvas
+      .getContext("webgl2")!
+      .getExtension("WEBGL_lose_context");
+    if (!extension) throw new Error("Missing WebGL context-loss test support");
+    extension.loseContext();
+  });
+  await expect(page.locator(".xterm-rows")).toContainText("/root");
   const separator = page.getByRole("separator", { name: "主机栏宽度" });
   await separator.focus();
   await page.keyboard.press("ArrowRight");
@@ -239,27 +254,7 @@ test("mobile touch opens a read-only terminal and never sends keyboard input", a
   await expect
     .poll(() => page.evaluate(() => (window as any).__sshxTest.received))
     .toContain("/root $");
-  await page.evaluate(
-    () =>
-      new Promise<void>((resolve) =>
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-      ),
-  );
-  await info.attach("terminal-layout", {
-    body: JSON.stringify(
-      await page.locator(".xterm").evaluate((el) => ({
-        html: el.outerHTML,
-        rect: el.getBoundingClientRect().toJSON(),
-        children: Array.from(
-          el.querySelectorAll("canvas,.xterm-screen,.xterm-viewport"),
-        ).map((n) => ({
-          tag: n.tagName,
-          rect: n.getBoundingClientRect().toJSON(),
-        })),
-      })),
-    ),
-    contentType: "application/json",
-  });
+  await expect(page.locator(".xterm-rows")).toContainText("/root");
   await page.locator(".xterm-screen").tap();
   const before = await page.evaluate(() => (window as any).__sshxTest.binary);
   await page.keyboard.type("do-not-send");
