@@ -1,0 +1,87 @@
+name: Verify
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['docs/**', '**.md']
+  pull_request:
+    paths-ignore: ['docs/**', '**.md']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+      - name: Frontend tests and production build
+        run: |
+          npm ci --prefix web
+          npm --prefix web test
+          npm --prefix web run build
+      - name: Install OpenSSH SFTP integration server
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y openssh-sftp-server
+      - name: Go static checks
+        run: go vet ./...
+      - name: Linux tests with race detector
+        if: runner.os == 'Linux'
+        run: go test -race -count=1 ./...
+      - name: Windows native tests and Credential Manager
+        if: runner.os == 'Windows'
+        env:
+          SSHX_TEST_SYSTEM_KEYRING: '1'
+        run: go test -count=1 ./...
+      - name: Build application and SSH test fixture
+        run: |
+          mkdir -p .testbin
+          suffix=''
+          if [ "$RUNNER_OS" = 'Windows' ]; then suffix='.exe'; fi
+          go build -o ".testbin/sshx${suffix}" ./cmd/sshx
+          go build -o ".testbin/fakesshd${suffix}" ./_fakesshd
+      - name: Install Chromium on Linux
+        if: runner.os == 'Linux'
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+      - name: Install Chromium on Windows
+        if: runner.os == 'Windows'
+        working-directory: web
+        run: npx playwright install chromium
+      - name: Desktop and mobile browser acceptance
+        run: npm --prefix web run test:e2e
+      - name: Browser reports and screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: browser-report-${{ runner.os }}
+          path: |
+            web/playwright-report/
+            web/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Tested application binary
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sshx-${{ runner.os }}
+          path: .testbin/sshx*
+          if-no-files-found: error
+          retention-days: 14

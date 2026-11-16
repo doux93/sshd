@@ -1,0 +1,36 @@
+[Unit]
+Description=sshx SSH workbench
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sshx
+Group=sshx
+ExecStart=/usr/local/bin/sshx --mode remote --addr 127.0.0.1:8722 --data /var/lib/sshx/sshx.db --master-password-file /var/lib/sshx/master-password
+Restart=on-failure
+RestartSec=5s
+StateDirectory=sshx
+StateDirectoryMode=0700
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+ReadWritePaths=/var/lib/sshx
+TimeoutStopSec=30s
+
+[Install]
+WantedBy=multi-user.target
