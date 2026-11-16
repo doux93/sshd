@@ -2,7 +2,7 @@
 
 本机环境：Linux amd64、Go 1.26.3、Node.js 24.22.1、npm 11.9.0。
 
-GitHub Actions：Ubuntu 与 Windows amd64，Go 1.26.3、Node.js 24。正式版代码提交 `16d60d26cb0eca96e3b218917b93f2190c756279` 的 [v0.3.0 完整验收与发布](https://github.com/doux93/sshd/actions/runs/43855180100) 三个任务全部成功。后续提交仅更新本文与实际界面截图。
+GitHub Actions：Ubuntu 与 Windows amd64，Go 1.26.3、Node.js 24。正式版代码提交 `16d60d26cb0eca96e3b218917b93f2190c756279` 的 [v0.3.0 完整验收与发布](https://github.com/doux93/sshd/actions/runs/43855180100) 三个任务全部成功。发布后未改动应用运行代码；后续补充独立的 Windows→Linux 发布包验收流程、结果与界面截图。
 
 固定下载：[sshx v0.3.0](https://github.com/doux93/sshd/releases/tag/v0.3.0)。已验证两个 ZIP 可完整解压，只包含程序、快速开始、VERSION 和 BUILD.txt；校验文件、打包产物与 GitHub Release 公布的 SHA-256 一致。Linux 包实际运行 `--version` 输出 0.3.0 及上述提交；Windows 原生版本与本地启动在 CI 验证。
 
@@ -25,6 +25,20 @@ GitHub Actions：Ubuntu 与 Windows amd64，Go 1.26.3、Node.js 24。正式版�
 | `git diff --check` | 通过 |
 
 `sshx/web` 与 `internal/testssh` 包没有 Go 测试文件，因此 Go JSON 日志中出现该包的 `skip` 状态；这不是集成测试被跳过。前端协议测试通过 npm 单独运行。
+
+## Windows 原生客户端 → Linux 服务端发布包实测
+
+[独立验收运行](https://github.com/doux93/sshd/actions/runs/43858021729) 已成功，执行的是下载并校验后的 **v0.3.0 Windows 发布包**，程序版本与提交为 `sshx 0.3.0 (16d60d26cb0eca96e3b218917b93f2190c756279)`。测试流程提交为 `cca64e3312a009c1765a99d7c5729de7011496fb`。
+
+- 客户端为 Windows Server 2025 上的原生程序、Windows Credential Manager 和 Chromium；服务端为 WSL2 Ubuntu 24.04 的真实 OpenSSH、SFTP 和 tmux。
+- 10 个阶段全部通过，包括指纹确认、错误密码、草稿测试、保存密码后登录、浏览器键盘输入、中文/空格私钥路径、实际 SSH TCP 中断，以及强制结束并重启整个 Windows 工作台进程。
+- 中文/空格文件名的 2 MiB 文件经浏览器上传，Linux 实际文件和下载内容的 SHA-256 均为 `c92a1eef18d94e3ad434b57657c834683284f7af85fc726b045922157caa3006`；重命名后内容仍一致。
+- 初始、断网恢复、工作台进程重启恢复三个阶段，Shell PID 均为 `421`，后台测试任务 PID 均为 `465`，环境变量和工作目录一致。重启后的连接使用 Windows 保存的密码，旧工作台 Token 被拒绝。
+- 结束远端终端缺少确认时被拒绝；确认后实际 tmux 会话消失。测试用户、文件、凭据及进程已执行清理。
+
+[完整结果 JSON](evidence/windows-linux-v0.3.0.json) · [真实界面截图](images/windows-linux-recovery.png) · [验收范围与复现](WINDOWS_LINUX_ACCEPTANCE.md)
+
+这次验收没有发现需要修改应用运行代码的问题。受控的 Windows Server + WSL2 环境不等同于用户 Windows 10/11 真机或远端物理服务器，也没有覆盖用户实际 VPN、跳板、网络延迟和安全软件。
 
 ## 0.3.0 终端恢复验收
 

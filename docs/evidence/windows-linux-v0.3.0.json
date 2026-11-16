@@ -1,0 +1,49 @@
+{
+  "release": "v0.3.0",
+  "scope": "Native Windows executable -> WSL2 Ubuntu OpenSSH/tmux",
+  "checks": [
+    {
+      "name": "Isolated Ubuntu OpenSSH server and disposable login created"
+    },
+    {
+      "name": "Real host-key confirmation and wrong-password rejection; draft test creates no host/session"
+    },
+    {
+      "name": "Windows saved credential opens real Linux tmux shell and background job",
+      "details": {
+        "shellPID": "421",
+        "jobPID": "465"
+      }
+    },
+    {
+      "name": "Native Windows Chromium terminal keyboard reaches Linux shell"
+    },
+    {
+      "name": "2 MiB SFTP browser upload, Linux-side hash, download and rename with Chinese/spaced filenames",
+      "details": {
+        "bytes": 2097152,
+        "sha256": "c92a1eef18d94e3ad434b57657c834683284f7af85fc726b045922157caa3006"
+      }
+    },
+    {
+      "name": "Windows private-key path with Chinese characters/spaces authenticates to Linux"
+    },
+    {
+      "name": "Actual SSH TCP interruption and resume preserve shell PID, background job PID, environment and directory"
+    },
+    {
+      "name": "Force-killed Windows executable restarts on same database and retrieves saved credential; original Linux shell/job survive"
+    },
+    {
+      "name": "Browser finds recovered terminal after executable restart"
+    },
+    {
+      "name": "Remote termination requires confirmation, ends actual tmux session, and saved-host cleanup succeeds"
+    }
+  ],
+  "success": true,
+  "executable": "sshx 0.3.0 (16d60d26cb0eca96e3b218917b93f2190c756279)",
+  "linux": "Linux 6.18.54.1-microsoft-standard-WSL2",
+  "workflow_run": "https://github.com/doux93/sshd/actions/runs/43858021729",
+  "workflow_commit": "cca64e3312a009c1765a99d7c5729de7011496fb"
+}

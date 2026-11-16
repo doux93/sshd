@@ -10,7 +10,7 @@
 
 ![深色分屏工作台实际浏览器截图](docs/images/dark-split.png)
 
-![远端保活终端恢复入口实际浏览器截图](docs/images/recovery-shelf.png)
+![Windows 原生客户端连接真实 Linux 后恢复终端](docs/images/windows-linux-recovery.png)
 
 ## 工作台怎么用
 
@@ -65,6 +65,8 @@ npm run test:e2e
 ```
 
 Windows 构建上述两个程序时添加 `.exe` 后缀。浏览器测试只使用临时数据库、本机测试 SSH 服务和模拟模型服务；测试结束后清理。Windows 原生凭据库测试通过 `SSHX_TEST_SYSTEM_KEYRING=1 go test ./internal/vault` 显式启用，使用独立随机凭据并在测试后删除。
+
+Windows 本地运行、连接 Linux 的发布包另有 [跨系统实测记录](docs/WINDOWS_LINUX_ACCEPTANCE.md)，包括保存凭据、中文路径、SFTP 内容校验、真实断线和进程重启恢复。
 
 ## 本地模式
 

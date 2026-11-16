@@ -4,6 +4,8 @@
 
 工作流 [Windows to Linux acceptance](https://github.com/doux93/sshd/actions/workflows/windows-linux.yml) 下载指定的已发布 Windows ZIP，核对 SHA-256 和 VERSION，再启动其中的原生 Windows 可执行文件。它不以重新编译的开发程序代替发布包。
 
+2026-11-16 已完成 [v0.3.0 实测](https://github.com/doux93/sshd/actions/runs/43858021729)，10 个阶段全部通过。发布程序未发现需要修复的问题；详细证据见 [结果 JSON](evidence/windows-linux-v0.3.0.json) 和 [界面截图](images/windows-linux-recovery.png)。
+
 ## 环境与范围
 
 - 客户端：GitHub 托管 Windows Server 2025，原生 `sshx.exe`、Windows Credential Manager 和 Chromium。
