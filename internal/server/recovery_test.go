@@ -225,3 +225,29 @@ func TestTmuxRecoveryAcrossWorkbenchRestart(t *testing.T) {
 	}
 	t.Log("Verified original shell PID, environment and directory across restart; missing-session and termination semantics")
 }
+
+func TestForgettingRecoveryBroadcastsWithoutTouchingRemote(t *testing.T) {
+	srv, token := reviewPasswordServer(t)
+	node := &store.Node{Kind: "connection", Name: "offline host"}
+	if err := srv.store.CreateNode(node); err != nil {
+		t.Fatal(err)
+	}
+	rec, err := srv.store.CreateRecovery(node.ID, node.Name, "offline", "route")
+	if err != nil {
+		t.Fatal(err)
+	}
+	events := []session.Event{}
+	unsubscribe := srv.subscribeEvents(func(e session.Event) { events = append(events, e) })
+	defer unsubscribe()
+	req := httptest.NewRequest("DELETE", "/api/recovery/"+rec.ID, strings.NewReader(`{"confirmed":true}`))
+	req.Header.Set("X-Auth-Token", token)
+	w := httptest.NewRecorder()
+	// Connect service is nil: forgetting must work offline without dialing.
+	srv.Handler().ServeHTTP(w, req)
+	if w.Code != 204 || len(events) != 1 || events[0].Type != "recovery" {
+		t.Fatal(w.Code, events)
+	}
+	if _, err := srv.store.GetNode(node.ID); err != nil {
+		t.Fatal("forget deleted host", err)
+	}
+}

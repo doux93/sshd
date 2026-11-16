@@ -573,6 +573,13 @@ test("recovery UI guards endpoint changes and separates terminate from forgettin
     fullPage: true,
     animations: "disabled",
   });
+  const other = await context.newPage();
+  await other.goto(app.url);
+  await other.getByRole("button", { name: "会话库", exact: true }).click();
+  const otherCard = other.getByRole("article", {
+    name: "保活终端 Recovery entry",
+  });
+  await expect(otherCard).toBeVisible();
   await card.getByRole("button", { name: "忘记恢复记录", exact: true }).click();
   const forget = page.getByRole("alertdialog", { name: "忘记恢复记录" });
   await expect(forget).toContainText("不停止远端任务");
@@ -580,6 +587,8 @@ test("recovery UI guards endpoint changes and separates terminate from forgettin
     .getByRole("button", { name: "确认忘记恢复记录", exact: true })
     .click();
   await expect(card).toHaveCount(0);
+  await expect(otherCard).toHaveCount(0);
+  await other.close();
   expect(
     (await (await context.request.get(app.url + "/api/recovery")).json())
       .length,

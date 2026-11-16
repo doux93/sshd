@@ -132,6 +132,7 @@ func (s *Server) openPersistent(w http.ResponseWriter, r *http.Request, node *st
 			return
 		}
 	}
+	defer s.broadcastSessionEvent(session.Event{Type: "recovery"})
 	backend, err := client.PreparePersistent(r.Context(), rec.ID, create, req.Cols, req.Rows)
 	if err != nil {
 		client.Close()
@@ -226,6 +227,7 @@ func (s *Server) handleTerminateRecovery(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	s.closeRecoveryViews(rec.ID)
+	s.broadcastSessionEvent(session.Event{Type: "recovery"})
 	w.WriteHeader(204)
 }
 func (s *Server) closeRecoveryViews(id string) {
@@ -260,5 +262,6 @@ func (s *Server) handleForgetRecovery(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.closeRecoveryViews(id)
+	s.broadcastSessionEvent(session.Event{Type: "recovery"})
 	w.WriteHeader(204)
 }

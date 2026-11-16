@@ -287,6 +287,9 @@ export const useAppStore = create<AppState>((set, get) => ({
             connecting: false,
             connectingNodeId: null,
           });
+        await get()
+          .refresh()
+          .catch(() => {});
       }
     };
     await attempt({});

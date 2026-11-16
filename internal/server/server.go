@@ -133,15 +133,7 @@ func New(d Deps) *Server {
 				s.getMonitorRegistry().Unlink(ev.SessionID)
 			}
 		}
-		s.evMu.Lock()
-		ls := make([]session.EventListener, 0, len(s.evListeners))
-		for _, l := range s.evListeners {
-			ls = append(ls, l)
-		}
-		s.evMu.Unlock()
-		for _, l := range ls {
-			l(ev)
-		}
+		s.broadcastSessionEvent(ev)
 	})
 
 	// Wire monitor callbacks to broadcast metrics/alerts to WS clients.
@@ -177,6 +169,18 @@ func New(d Deps) *Server {
 			}, s.log)
 	}
 	return s
+}
+
+func (s *Server) broadcastSessionEvent(ev session.Event) {
+	s.evMu.Lock()
+	ls := make([]session.EventListener, 0, len(s.evListeners))
+	for _, l := range s.evListeners {
+		ls = append(ls, l)
+	}
+	s.evMu.Unlock()
+	for _, l := range ls {
+		l(ev)
+	}
 }
 
 func (s *Server) subscribeEvents(l session.EventListener) (unsubscribe func()) {
