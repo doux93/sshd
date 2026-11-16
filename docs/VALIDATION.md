@@ -1,6 +1,8 @@
 # 验证记录 — 2026-11-16
 
-环境：Linux amd64、Go 1.26.3、Node.js 24.22.1、npm 11.9.0。
+本机环境：Linux amd64、Go 1.26.3、Node.js 24.22.1、npm 11.9.0。
+
+GitHub Actions：Ubuntu 与 Windows amd64，Go 1.26.3、Node.js 24。最终代码提交 `d1c1ee814dbac15dc622363787a1c44e839b2f76` 的 [Verify #4](https://github.com/doux93/sshd/actions/runs/43834310879) 两个任务均成功。后续仅补充文档与截图。
 
 ## 已通过
 
@@ -11,7 +13,8 @@
 | `npm --prefix web test` | 14 个测试通过，无失败或跳过（组件交互、状态与协议） |
 | `npm --prefix web run build` | TypeScript 检查、Vite 生产构建、PWA Service Worker 构建通过 |
 | `go build -o sshx ./cmd/sshx` | Linux amd64 构建通过 |
-| `GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o sshx.exe ./cmd/sshx` | Windows amd64 交叉编译通过；未在 Windows 上执行 |
+| Windows `go test -count=1 ./...`、`go vet ./...`、原生构建 | 通过；Windows Credential Manager 读、写、覆盖、删除实际执行；OpenSSH Unix 路径测试在 Windows 跳过，由 Linux 执行 |
+| Chromium 桌面及手机尺寸 E2E | Linux 与 Windows 各 6 个有效场景通过；另 2 项是桌面/手机互不适用的组合，按设计跳过 |
 | `git diff --check` | 通过 |
 
 `sshx/web` 包没有 Go 测试文件，因此 Go JSON 日志中出现该包的 `skip` 状态；这不是集成测试被跳过。前端协议测试通过 npm 单独运行。
@@ -42,15 +45,29 @@
 
 ## 自动化浏览器与 Windows 验收
 
-新增 Playwright 桌面和移动尺寸用例，使用真实生产构建、HTTP/WebSocket、临时数据库和本机 SSH 协议服务，覆盖登录退出、连接测试、会话保留与恢复、掉线重连、AI 预览、布局记忆、告警深链接及确认、移动端只读。新增 Windows Credential Manager 写入/读取/覆盖/删除原生测试。
+Playwright 使用真实生产构建、HTTP/WebSocket、临时数据库和本机 SSH 协议服务，模型响应由本机固定测试服务提供。两套操作系统均完成：
 
-工作流 `.github/workflows/verify.yml` 在 Linux 和 Windows 执行这些检查，保存浏览器报告、截图及通过验收的程序。上传后的运行结果以 GitHub Actions 为准，不能把测试脚本已添加等同于测试已通过。
+- 登录、PWA 注册与刷新导航，退出后原凭据失效。
+- 草稿主机测试与指纹确认、收藏与搜索、终端输入、关闭视图后找回原会话、断网重连、结束会话确认。
+- AI 结构化预览与复制；测试站点获准访问剪贴板后读回 `pwd`，确认未写入终端。
+- 布局宽度记忆；桌面 WebGL 上下文丢失后退回 DOM 并继续显示原输出。
+- 告警深链接筛选主机、确认后刷新保留状态。
+- 手机触摸打开只读终端，收到回放且 DOM 输出可见，键盘输入不产生发送帧；页面没有横向溢出。终端自身横向滚动保留服务端 PTY 宽度。
+
+检查实际截图时发现手机高像素密度下 WebGL 空白，已将 passive 视图改为 DOM 渲染并验证截图。Windows 测试还暴露并修复了空闲时间恰好等于 TTL 时的回收边界。
+
+工作流保存 `browser-report-Linux`、`browser-report-Windows` 和对应程序 `sshx-Linux`、`sshx-Windows`，保留 14 天。图形界面截图见 README。浏览器使用 Chromium；手机尺寸、触摸与像素密度模拟不等同于真机验收，也未验证完整 PWA 缓存版本升级。
 
 ## 尚未完成的实机验收
 
-- 完整浏览器 E2E：尝试启动 Chromium 时被当前环境的 socket 权限限制（EPERM）阻止。前端构建与协议测试通过不等于页面交互、真实 PWA 缓存切换已完成浏览器验收。
-- Windows/macOS 本地钥匙串、实际 ssh-agent、真实移动 Web Push、各类代理及 SFTP 服务器组合、长期运行和高并发故障压测。
+- macOS 本地钥匙串、实际 ssh-agent、真实手机及移动 Web Push、各类代理及 SFTP 服务器组合、长期运行和高并发故障压测。
 - 外部 MCP 客户端兼容性；当前实现仍为基础 JSON-RPC HTTP，未提供完整 Streamable HTTP。
+
+## 构建依赖检查
+
+本轮将 Vite 更新至 6.4.6，并更新相关传递依赖；Workbox 的 `glob` 显式覆盖到 14.0.6，已重新验证生产构建和 Service Worker 注入。`npm audit` 当前没有中危、高危或严重项。
+
+仍有 `deepmerge@4.3.1` 的低危原型污染通告，以及由其依赖链引出的 3 项低危记录（共 4 项）。这是 PWA 构建工具依赖，不属于发布给浏览器的应用运行依赖；上游尚无更新版本。构建使用仓库内可信配置，未采用自动降级 PWA 插件来隐藏通告。后续仍需跟踪上游修复。
 
 ## 复现
 

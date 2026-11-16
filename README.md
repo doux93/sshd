@@ -4,6 +4,8 @@
 
 本修订版完成了会话操作、主机管理、工作区布局、移动只读、告警和 AI 助手的体验更新，并保留上一版的安全与稳定性修复。变化见 [修订记录](docs/CHANGELOG.md)，使用说明见 [产品体验更新](docs/PRODUCT_UPDATE.md)。
 
+![桌面工作台实际浏览器截图](docs/images/workbench.png)
+
 ## 工作台怎么用
 
 - 标签上的 × 只关闭当前视图。打开“会话库”可找回后台会话；“结束会话”是单独确认的操作。
@@ -36,7 +38,7 @@ Windows 可使用 `go build -o sshx.exe ./cmd/sshx`。`-race` 需要受支持的
 
 ## 浏览器验收与下载
 
-[GitHub Actions](https://github.com/doux93/sshd/actions/workflows/verify.yml) 在 Linux 和 Windows 上运行测试、构建，以及桌面和手机尺寸的 Chromium 验收。成功运行的 Artifacts 提供对应系统的程序和浏览器截图；手机尺寸测试不代表真实手机或移动推送已经验收。
+[GitHub Actions](https://github.com/doux93/sshd/actions/workflows/verify.yml) 在 Linux 和 Windows 上运行测试、构建，以及桌面和手机尺寸的 Chromium 验收。[本轮已通过的运行与下载](https://github.com/doux93/sshd/actions/runs/43834310879) 的 Artifacts 提供 `sshx-Windows`、`sshx-Linux` 和浏览器报告，保留 14 天；过期后可重新运行工作流构建。手机尺寸测试不代表真实手机或移动推送已经验收，详细结果见 [验证记录](docs/VALIDATION.md)。
 
 本地复现浏览器验收（Node.js 24）：
 
