@@ -2,29 +2,32 @@
 
 本机环境：Linux amd64、Go 1.26.3、Node.js 24.22.1、npm 11.9.0。
 
-GitHub Actions：Ubuntu 与 Windows amd64，Go 1.26.3、Node.js 24。正式版代码提交 `3acc57ba38aec3e5c86e32f8ca17c053d66dd365` 的 [v0.2.1 完整验收与发布](https://github.com/doux93/sshd/actions/runs/43840830264) 三个任务全部成功。后续提交仅更新本文与实际界面截图。
-
-固定下载：[sshx v0.2.1](https://github.com/doux93/sshd/releases/tag/v0.2.1)。已验证两个 ZIP 可完整解压，只包含程序、快速开始、VERSION 和 BUILD.txt；校验文件、打包产物与 GitHub Release 公布的 SHA-256 一致。Linux 下载包实际运行 `--version` 输出 0.2.1 及上述提交；Windows 原生版本与本地启动在 CI 验证。
-
-| 下载包 | SHA-256 |
-|---|---|
-| `sshx-Linux-amd64.zip` | `dded49dcda9ae3254d39080b7745d17ed229963ef7ea613ed7756a03e3a3e958` |
-| `sshx-Windows-amd64.zip` | `3a0a0d5fc924fc425298fd5754555d96372ddd95abb46a12033009e468c0e0f2` |
+GitHub Actions：Ubuntu 与 Windows amd64，Go 1.26.3、Node.js 24。0.3.0 开发验收已经通过真实 OpenSSH/tmux 恢复、竞态检查、前端交互和两套操作系统的浏览器回归；正式发布的提交、下载包校验和最终验收链接将在发布完成后补充。最新布局开发构建：[完整检查](https://github.com/doux93/sshd/actions/runs/43854562955)。
 
 ## 已通过
 
 | 检查 | 结果 |
 |---|---|
-| `go test -race -count=1 ./...` | 15 个有测试的包全部通过；含连接错误分类、浏览器启动地址校验及既有回归，无测试失败 |
+| `go test -race -count=1 ./...` | 15 个有测试的包全部通过；含真实 OpenSSH/tmux 恢复、连接错误分类、浏览器启动地址校验及既有回归，无测试失败 |
 | `go vet ./...` | 通过 |
-| `npm --prefix web test` | 18 个测试通过，无失败或跳过（组件交互、状态与协议） |
+| `npm --prefix web test` | 21 个测试通过，无失败或跳过（组件交互、状态与协议） |
 | `npm --prefix web run build` | TypeScript 检查、Vite 生产构建、PWA Service Worker 构建通过 |
 | `go build -o sshx ./cmd/sshx` | Linux amd64 构建通过 |
-| Windows `go test -count=1 ./...`、`go vet ./...`、原生构建 | 通过；Windows Credential Manager 读、写、覆盖、删除实际执行；OpenSSH Unix 路径测试在 Windows 跳过，由 Linux 执行 |
-| Chromium 桌面及手机尺寸 E2E | Linux 与 Windows 各 9 个有效场景通过；另 5 项是桌面/手机互不适用的组合，按设计跳过 |
+| Windows `go test -count=1 ./...`、`go vet ./...`、原生构建 | 通过；Windows Credential Manager 读、写、覆盖、删除实际执行；OpenSSH/SFTP 与 tmux 的 Unix 集成测试在 Windows 跳过，由 Linux 执行 |
+| Chromium 桌面及手机尺寸 E2E | Linux 与 Windows 各 11 个有效场景通过；另 7 项是桌面/手机互不适用的组合，按设计跳过 |
 | `git diff --check` | 通过 |
 
-`sshx/web` 包没有 Go 测试文件，因此 Go JSON 日志中出现该包的 `skip` 状态；这不是集成测试被跳过。前端协议测试通过 npm 单独运行。
+`sshx/web` 与 `internal/testssh` 包没有 Go 测试文件，因此 Go JSON 日志中出现该包的 `skip` 状态；这不是集成测试被跳过。前端协议测试通过 npm 单独运行。
+
+## 0.3.0 终端恢复验收
+
+- Linux 使用真实 OpenSSH 服务和 tmux，创建保活终端后关闭全部工作台连接、关闭数据库、重建工作台依赖并重新打开原数据库。恢复后的 Shell PID、环境变量和工作目录与关闭前一致。
+- 同一主机重复连接复用当前会话；“断开并保留”后仍能恢复同一 PID；主动结束远端 tmux 后，恢复返回明确的 410，保留记录并且不创建替代 Shell。
+- 结束已不存在的终端可清理记录；结束仍存在的终端实际终止对应 tmux 会话。测试只清理自身随机命名的 tmux socket。
+- 恢复 API 要求认证；结束与忘记要求显式确认。主机地址变化在拨号前被拒绝；仍有关联恢复记录的主机禁止删除。
+- 前端组件验证恢复只调用恢复接口、失败不回退新建、断开和结束远端任务分开确认。
+- Chromium 通过真实 HTTP、临时数据库及 WebSocket 验证恢复入口、目标变化提示、取消结束不发请求、离线忘记、多浏览器列表同步，以及远端缺少 tmux 时的提示和记录清理。该部分使用固定 SSH 测试服务；真实 tmux 进程恢复由上述 Linux Go 集成测试验证。
+- 本地环境缺少 tmux，因此本地该集成测试明确跳过；CI Linux 安装 OpenSSH/tmux，并设置 `SSHX_REQUIRE_TMUX_TEST=1`，依赖缺失将导致失败，不能以跳过代替通过。
 
 ## 0.2.x 新增验收
 
@@ -101,4 +104,4 @@ go vet ./...
 go build -o sshx ./cmd/sshx
 ```
 
-`-race` 需要对应平台的 C 工具链。OpenSSH SFTP 集成测试在缺少 `/usr/lib/openssh/sftp-server` 时会明确跳过。源码包不包含依赖、二进制或前端构建输出。
+`-race` 需要对应平台的 C 工具链。OpenSSH SFTP 集成测试在缺少 `/usr/lib/openssh/sftp-server` 时会明确跳过。终端恢复集成测试需 Linux、OpenSSH 服务端、tmux 及可用的 `/run/sshd`；设置 `SSHX_REQUIRE_TMUX_TEST=1` 可强制要求它实际执行。源码包不包含依赖、二进制或前端构建输出。
