@@ -228,7 +228,7 @@ textarea:focus-visible,
   --color-slate-800: #e5ecf4;
   --color-slate-700: #c8d4e2;
   --color-slate-600: #64748b;
-  --color-slate-500: #64748b;
+  --color-slate-500: #596b84;
   --color-slate-400: #52657f;
   --color-slate-300: #3c506c;
   --color-slate-200: #2a3f5b;
@@ -245,6 +245,9 @@ textarea:focus-visible,
   --color-rose-300: #be123c;
   --color-rose-950: #ffe4e6;
   --color-red-300: #b91c1c;
+  --color-red-200: #991b1b;
+  --color-red-950: #fee2e2;
+  --color-rose-200: #9f1239;
   --color-red-400: #dc2626;
 }
 body {

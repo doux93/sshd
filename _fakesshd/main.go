@@ -172,6 +172,7 @@ func fakeShell(in io.Reader, out io.Writer, root string) {
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if strings.HasPrefix(line, "__sshx_osc7()") {
+			fmt.Fprint(out, "\r\x1b[2K")
 			prompt()
 			continue
 		}

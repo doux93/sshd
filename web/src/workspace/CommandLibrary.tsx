@@ -61,7 +61,7 @@ export function CommandLibrary({ onClose }: { onClose(): void }) {
         <div className="my-4 rounded-lg border border-slate-700 p-3 text-xs">
           <span className="text-slate-400">当前目标</span>
           <strong className="ml-2 break-all font-mono text-sky-300">
-            {target?.target ?? "尚未选择会话"}
+            {target ? `${target.label} · ${target.target}` : "尚未选择会话"}
           </strong>
           <p className="mt-2 text-slate-400">
             复制后在目标终端粘贴并检查，再按 Enter

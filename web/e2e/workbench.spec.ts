@@ -30,6 +30,7 @@ test("login, PWA navigation and logout revoke the credential", async ({
   ).toBeVisible();
   await assertFits(page);
   await page.screenshot({
+    animations: "disabled",
     path: info.outputPath("workbench.png"),
     fullPage: true,
   });
@@ -183,6 +184,7 @@ test("desktop connection test, terminal persistence, reconnect and AI preview", 
   await expect(separator).toHaveAttribute("aria-valuenow", size!);
   await assertFits(page);
   await page.screenshot({
+    animations: "disabled",
     path: info.outputPath("desktop-terminal.png"),
     fullPage: true,
   });
@@ -268,6 +270,7 @@ test("mobile touch opens a read-only terminal and never sends keyboard input", a
   );
   await assertFits(page);
   await page.screenshot({
+    animations: "disabled",
     path: info.outputPath("mobile-readonly.png"),
     fullPage: true,
   });
@@ -275,6 +278,7 @@ test("mobile touch opens a read-only terminal and never sends keyboard input", a
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await expect(page.locator(".xterm-rows")).toContainText("/remote");
   await page.screenshot({
+    animations: "disabled",
     path: info.outputPath("mobile-light.png"),
     fullPage: true,
   });
@@ -348,6 +352,7 @@ test("themes, split terminals and saved commands preserve explicit input targets
   );
   await assertFits(page);
   await page.screenshot({
+    animations: "disabled",
     path: info.outputPath("light-split.png"),
     fullPage: true,
   });
@@ -355,6 +360,7 @@ test("themes, split terminals and saved commands preserve explicit input targets
   await expect(page.locator(".split-terminals")).toHaveClass(/stacked/);
   await page.getByRole("button", { name: "常用命令", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "常用命令" });
+  await expect(dialog).toContainText("Split B ·");
   await dialog.getByLabel("命令名称").fill("查看目录");
   await dialog.getByLabel("命令内容").fill("pwd");
   await dialog.getByRole("button", { name: "收藏命令", exact: true }).click();
@@ -369,6 +375,7 @@ test("themes, split terminals and saved commands preserve explicit input targets
     before,
   );
   await page.screenshot({
+    animations: "disabled",
     path: info.outputPath("command-library.png"),
     fullPage: true,
   });
@@ -382,12 +389,14 @@ test("themes, split terminals and saved commands preserve explicit input targets
   await page.getByRole("button", { name: "左右排列", exact: true }).click();
   await page.getByRole("button", { name: "切换深色主题" }).click();
   await page.screenshot({
+    animations: "disabled",
     path: info.outputPath("dark-split.png"),
     fullPage: true,
   });
   await page.setViewportSize({ width: 900, height: 760 });
   await assertFits(page);
   await page.screenshot({
+    animations: "disabled",
     path: info.outputPath("compact-workspace.png"),
     fullPage: true,
   });
@@ -454,13 +463,11 @@ test("SFTP upload survives panel closure and cancelled or failed jobs retry", as
     },
     { times: 1 },
   );
-  await page
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "acceptance.txt",
-      mimeType: "text/plain",
-      buffer: Buffer.from("verified SFTP contents\n"),
-    });
+  await page.locator("input[type=file]").setInputFiles({
+    name: "acceptance.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("verified SFTP contents\n"),
+  });
   const queue = page.getByRole("complementary", { name: "上传队列" });
   await expect(queue).toBeVisible();
   await expect.poll(() => intercepted).toBe(true);
@@ -489,13 +496,11 @@ test("SFTP upload survives panel closure and cancelled or failed jobs retry", as
       }),
     { times: 1 },
   );
-  await page
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "retry.txt",
-      mimeType: "text/plain",
-      buffer: Buffer.from("retry contents"),
-    });
+  await page.locator("input[type=file]").setInputFiles({
+    name: "retry.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("retry contents"),
+  });
   await expect(queue.getByText("上传失败", { exact: true })).toBeVisible();
   await queue.getByRole("button", { name: "收起上传队列" }).click();
   await page.getByRole("button", { name: "文件", exact: true }).click();
@@ -512,6 +517,7 @@ test("SFTP upload survives panel closure and cancelled or failed jobs retry", as
   expect(retried.ok()).toBe(true);
   expect(await retried.text()).toBe("retry contents");
   await page.screenshot({
+    animations: "disabled",
     path: info.outputPath("upload-queue.png"),
     fullPage: true,
   });

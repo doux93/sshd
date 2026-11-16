@@ -2,22 +2,32 @@
 
 本机环境：Linux amd64、Go 1.26.3、Node.js 24.22.1、npm 11.9.0。
 
-GitHub Actions：Ubuntu 与 Windows amd64，Go 1.26.3、Node.js 24。最终代码提交 `d1c1ee814dbac15dc622363787a1c44e839b2f76` 的 [Verify #4](https://github.com/doux93/sshd/actions/runs/43834310879) 两个任务均成功。后续仅补充文档与截图。
+GitHub Actions：Ubuntu 与 Windows amd64，Go 1.26.3、Node.js 24。0.2.0 开发版提交 `bc34960f76e784665242f115b4f2c56c4fe7d0bd` 的 [跨平台验收](https://github.com/doux93/sshd/actions/runs/43839264156) 已通过；正式发布时会对版本化源码再次完成同一套检查。
 
 ## 已通过
 
 | 检查 | 结果 |
 |---|---|
-| `go test -race -count=1 ./...` | 15 个有测试的包全部通过；136 个顶层测试，连同子测试共 142 个通过事件，无测试失败或跳过 |
+| `go test -race -count=1 ./...` | 15 个有测试的包全部通过；含连接错误分类、浏览器启动地址校验及既有回归，无测试失败 |
 | `go vet ./...` | 通过 |
-| `npm --prefix web test` | 14 个测试通过，无失败或跳过（组件交互、状态与协议） |
+| `npm --prefix web test` | 18 个测试通过，无失败或跳过（组件交互、状态与协议） |
 | `npm --prefix web run build` | TypeScript 检查、Vite 生产构建、PWA Service Worker 构建通过 |
 | `go build -o sshx ./cmd/sshx` | Linux amd64 构建通过 |
 | Windows `go test -count=1 ./...`、`go vet ./...`、原生构建 | 通过；Windows Credential Manager 读、写、覆盖、删除实际执行；OpenSSH Unix 路径测试在 Windows 跳过，由 Linux 执行 |
-| Chromium 桌面及手机尺寸 E2E | Linux 与 Windows 各 6 个有效场景通过；另 2 项是桌面/手机互不适用的组合，按设计跳过 |
+| Chromium 桌面及手机尺寸 E2E | Linux 与 Windows 各 9 个有效场景通过；另 5 项是桌面/手机互不适用的组合，按设计跳过 |
 | `git diff --check` | 通过 |
 
 `sshx/web` 包没有 Go 测试文件，因此 Go JSON 日志中出现该包的 `skip` 状态；这不是集成测试被跳过。前端协议测试通过 npm 单独运行。
+
+## 0.2.0 新增验收
+
+- Windows 本地启动：`--open-browser=false` 启动原生程序，未认证请求返回 401，启动地址中的 Token 能访问工作台；版本输出与 VERSION 一致。系统默认浏览器自动打开属于实现功能，未在 CI 桌面交互验收。
+- 明暗主题切换及刷新记忆，切换不新增 attach/detach；左右/上下分屏各自输入，只改变目标会话目录；900px 窗口没有页面横向溢出。
+- 常用命令收藏、刷新保留、剪贴板读回，复制操作不产生终端输入帧；加载时拒绝控制字符和畸形数据。
+- 错误密码展示认证排查建议，修正后“保存并连接”打开实际 SSH 终端。
+- 浏览器执行真实 SSH/SFTP 上传并下载核对内容；通过网络路由注入失败与延迟验证取消、重试及文件面板关闭后的队列操作。
+- 上传队列单元测试验证顺序、固定目标、等待服务端保存、取消活动/等待任务、重试与保留文件、清理历史不误删待传任务。
+- 手机尺寸的明暗终端输出均可见，输入仍被禁止。通知环境与权限指引已加入，真实推送到达率和系统通知点击仍需真机验收。
 
 ## 本次产品体验回归
 

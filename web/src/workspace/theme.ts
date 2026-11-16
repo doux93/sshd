@@ -43,6 +43,12 @@ export function terminalTheme(mode: Theme) {
         cyan: "#0e7490",
         white: "#64748b",
         brightBlack: "#475569",
+        brightRed: "#dc2626",
+        brightGreen: "#15803d",
+        brightYellow: "#a16207",
+        brightBlue: "#2563eb",
+        brightMagenta: "#a21caf",
+        brightCyan: "#0e7490",
         brightWhite: "#0f172a",
       }
     : {

@@ -1,3 +1,4 @@
+import { formatSize } from "./formatSize";
 import { Icon } from "../components/Icon";
 import { uploadQueue, useTransfers, isPending } from "./transfers";
 export function TransferPanel({ onClose }: { onClose(): void }) {
@@ -78,8 +79,7 @@ export function TransferPanel({ onClose }: { onClose(): void }) {
             />
             <div className="mt-2 flex justify-between text-xs text-slate-400">
               <span>
-                {(job.loaded / 1024).toFixed(1)} /{" "}
-                {(job.size / 1024).toFixed(1)} KB
+                {formatSize(job.loaded)} / {formatSize(job.size)}
               </span>
               {isPending(job) ? (
                 <button

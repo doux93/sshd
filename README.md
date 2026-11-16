@@ -2,21 +2,28 @@
 
 面向个人的 SSH 工作台：Go 服务端保持会话，React + xterm.js 提供浏览器终端，配套 SFTP、监控、告警和 AI 工具。
 
-本修订版完成了会话操作、主机管理、工作区布局、移动只读、告警和 AI 助手的体验更新，并保留上一版的安全与稳定性修复。变化见 [修订记录](docs/CHANGELOG.md)，使用说明见 [产品体验更新](docs/PRODUCT_UPDATE.md)。
+0.2.0 增加明暗主题、双终端分屏、常用命令收藏、可取消重试的上传队列，以及首次连接引导。保留会话管理、移动只读、告警、AI 助手与既有安全修复。变化见 [修订记录](docs/CHANGELOG.md)，使用说明见 [产品体验更新](docs/PRODUCT_UPDATE.md)。
 
-![桌面工作台实际浏览器截图](docs/images/workbench.png)
+[下载 Windows / Linux 版本](https://github.com/doux93/sshd/releases/latest) · [快速开始](docs/QUICKSTART.md)
+
+![浅色分屏工作台实际浏览器截图](docs/images/light-split.png)
+
+![深色分屏工作台实际浏览器截图](docs/images/dark-split.png)
 
 ## 工作台怎么用
 
 - 标签上的 × 只关闭当前视图。打开“会话库”可找回后台会话；“结束会话”是单独确认的操作。
 - 主机支持搜索、收藏和最近使用。新建主机先填写地址、用户及认证方式，跳板、代理、监控、告警规则与 AI 权限位于高级设置。
 - “测试连接”使用当前表单完成 SSH 身份验证，随后断开，不创建终端或保存主机配置；经明确确认的主机指纹会保留。
+- 顶栏切换浅色/深色主题。打开两个会话视图后点击“分屏”，蓝线标记输入目标，可左右或上下排列；小窗口自动上下排列。
+- “常用命令”显示当前会话和主机，支持收藏、编辑、删除、复制；复制不自动执行。
+- 文件上传显示进度、保存状态及目标路径，可取消或重试。切换会话、收起文件面板不会中断；关闭或刷新整个页面会丢失队列。下载由浏览器管理。
 - 主机栏可折叠，主机栏、文件区及监控区可拖动调节尺寸，也支持聚焦分隔条后使用方向键调整。
 - 手机上可只读查看输出、监控与告警。只读附着由前后端共同限制输入，手机不会改变桌面终端尺寸。
 - 告警历史保存在服务端，最多保留最近 1,000 条，支持翻页、确认及定位关联主机。告警页可主动启用当前设备通知。
 - Ctrl+K 展示目标主机、命令、解释及影响；终端输出默认不发送，勾选后最多附带 16 KiB。
 
-收藏、最近使用、布局与打开的视图保存在当前浏览器；SSH 会话及告警由服务端保存。关闭视图后的无附着会话仍受 `--session-ttl` 回收策略约束。
+主题、常用命令、收藏、最近使用、布局与打开的视图保存在当前浏览器；SSH 会话及告警由服务端保存。关闭视图后的无附着会话仍受 `--session-ttl` 回收策略约束。
 
 ## 构建
 
@@ -38,7 +45,9 @@ Windows 可使用 `go build -o sshx.exe ./cmd/sshx`。`-race` 需要受支持的
 
 ## 浏览器验收与下载
 
-[GitHub Actions](https://github.com/doux93/sshd/actions/workflows/verify.yml) 在 Linux 和 Windows 上运行测试、构建，以及桌面和手机尺寸的 Chromium 验收。[本轮已通过的运行与下载](https://github.com/doux93/sshd/actions/runs/43834310879) 的 Artifacts 提供 `sshx-Windows`、`sshx-Linux` 和浏览器报告，保留 14 天；过期后可重新运行工作流构建。手机尺寸测试不代表真实手机或移动推送已经验收，详细结果见 [验证记录](docs/VALIDATION.md)。
+固定下载见 [Releases](https://github.com/doux93/sshd/releases/latest)：`sshx-Windows-amd64.zip` 和 `sshx-Linux-amd64.zip`，每份附 SHA-256 校验文件。Windows 解压后双击 `sshx.exe`，会尝试打开默认浏览器；使用期间保留控制台窗口。
+
+[GitHub Actions](https://github.com/doux93/sshd/actions/workflows/verify.yml) 在 Linux 和 Windows 上完成测试、构建及桌面/手机尺寸 Chromium 验收后才发布。开发版只保留 14 天的 Actions 附件，不覆盖已有正式版本。手机模拟不代表真机或推送已验收，详细结果见 [验证记录](docs/VALIDATION.md)。
 
 本地复现浏览器验收（Node.js 24）：
 
@@ -59,7 +68,7 @@ Windows 构建上述两个程序时添加 `.exe` 后缀。浏览器测试只使�
 ./sshx
 ```
 
-默认监听 `127.0.0.1:8722`，打开控制台打印的带 Token 地址。Token 在本次服务进程存活期间有效，并非用一次即销毁。本地模式仅允许数字形式的回环地址；凭据使用系统钥匙串。
+默认监听 `127.0.0.1:8722`，打开控制台打印的带 Token 地址。Windows 默认打开浏览器，`--open-browser=false` 可关闭；`--version` 查看版本和提交。Token 在本次服务进程存活期间有效，并非用一次即销毁。本地模式仅允许数字形式的回环地址；凭据使用系统钥匙串。
 
 开发时先构建一次前端，再分别运行 `go run ./cmd/sshx` 与 `cd web && npm run dev`。打开 Vite 地址时携带后端打印的 Token。
 
