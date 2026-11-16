@@ -27,7 +27,7 @@ const envValue = 'keep_' + runID;
 const evidence = { release: process.env.RELEASE_TAG || 'v0.3.0', distribution, scope: 'Native Windows executable -> WSL2 Ubuntu OpenSSH/tmux', checks: [], success: false };
 const wsClients = new Set();
 const proxySockets = new Set();
-let app, url, browser, proxy, fixtureStarted = false;
+let app, url, browser, page, terminal, proxy, fixtureStarted = false;
 const binary = join(local, 'sshx 工作台.exe');
 const database = join(local, '工作台 数据.db');
 const keyPath = join(local, '连接 私钥');
@@ -209,15 +209,37 @@ printf '%s' "$port"
     assert.equal(JSON.stringify(node).includes(password), false);
     let session = await json('/nodes/' + node.id + '/connect', { method: 'POST', data: {} }, 201);
     assert.ok(session.recoveryId);
-    let terminal = await attach(session.id);
+    terminal = await attach(session.id);
     const original = await measure(terminal, 'INITIAL', true);
     check('Windows saved credential opens real Linux tmux shell and background job', original);
 
     browser = await chromium.launch();
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    const browserInput = { attached: 0, receivedBytes: 0, sentBytes: 0, input: '', events: [] };
+    const browserStart = Date.now();
+    evidence.browserInput = browserInput;
+    page.on('websocket', socket => {
+      socket.on('framereceived', ({ payload }) => {
+        if (typeof payload === 'string') {
+          const message = JSON.parse(payload);
+          if (message.type === 'attached') {
+            browserInput.attached++;
+            browserInput.events.push({ event: 'attached', ms: Date.now() - browserStart });
+          }
+        } else browserInput.receivedBytes += payload.length;
+      });
+      socket.on('framesent', ({ payload }) => {
+        if (typeof payload !== 'string') {
+          browserInput.sentBytes += payload.length;
+          browserInput.input = (browserInput.input + payload.subarray(1).toString()).slice(-4000);
+        }
+      });
+    });
     await page.goto(url.href);
     await expect(page.getByRole('tab', { name: node.name, exact: true })).toBeVisible();
     await page.locator('.xterm-screen').click();
+    browserInput.events.push({ event: 'keyboard-start', ms: Date.now() - browserStart });
+    browserInput.focusBefore = await page.evaluate(() => document.activeElement?.className);
     await page.keyboard.type("printf '\\nUI_SUM:%s\\n' \"$((17+25))\"");
     await page.keyboard.press('Enter');
     await until(() => terminal.output.includes('UI_SUM:42'), 'Browser keyboard did not reach Linux shell');
@@ -294,6 +316,11 @@ printf '%s' "$port"
     evidence.success = true;
   } catch (error) {
     evidence.error = error.message;
+    if (terminal) evidence.terminalTail = terminal.output.slice(-12000);
+    if (page) {
+      evidence.focusAfter = await page.evaluate(() => document.activeElement?.className).catch(() => null);
+      await page.screenshot({ path: join(output, 'failure.png'), fullPage: true, timeout: 5000 }).catch(() => {});
+    }
     process.exitCode = 1;
     console.error('FAIL: ' + error.message);
   } finally {
