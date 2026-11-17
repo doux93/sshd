@@ -534,11 +534,14 @@ test("SFTP upload survives panel closure and cancelled or failed jobs retry", as
   await expect.poll(() => intercepted).toBe(true);
   // Refusing a browser reload keeps the original in-flight upload and queue.
   const leavePrompt = page.waitForEvent("dialog");
-  const reloading = page.reload().catch(() => {}); // dismiss deliberately aborts navigation
+  // Trigger a real reload without waiting for a load event: cancelling the
+  // beforeunload dialog intentionally leaves the current document in place.
+  await page.evaluate(() => {
+    setTimeout(() => location.reload(), 0);
+  });
   const leaveDialog = await leavePrompt;
   expect(leaveDialog.type()).toBe("beforeunload");
   await leaveDialog.dismiss();
-  await reloading;
   await expect(queue).toBeVisible();
   // Logout must ask before revoking the credential, not after navigating away.
   const logoutPrompt = page.waitForEvent("dialog");
@@ -715,6 +718,9 @@ test("missing tmux gives an actionable error without leaving a recovery record",
   await page.getByRole("button", { name: /高级设置/ }).click();
   await page.getByLabel("终端保活与恢复（tmux）").check();
   await page.getByRole("button", { name: "保存并连接", exact: true }).click();
+  const trust = page.getByRole("button", { name: "信任并连接", exact: true });
+  await expect(page.getByRole("alert").or(trust)).toBeVisible();
+  if (await trust.isVisible()) await trust.click();
   await expect(page.getByRole("alert")).toContainText("远端未找到 tmux");
   expect(
     (await (await context.request.get(app.url + "/api/recovery")).json())
