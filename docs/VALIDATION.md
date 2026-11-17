@@ -1,5 +1,7 @@
 # 验证记录 — 2026-11-16
 
+当前工作分支包含 0.3.2 开发版：MCP HTTP 回归、24 项前端测试和生产构建已在本地通过，Windows/Linux 与跨 Ubuntu 的新验收结果待补充。下方 0.3.1 内容为上一正式版本的历史记录。
+
 本机环境：Linux amd64、Go 1.26.3、Node.js 24.22.1、npm 11.9.0。
 
 GitHub Actions：Ubuntu 与 Windows amd64，Go 1.26.3、Node.js 24。正式版代码提交 `ff8a7869b7183171b020d03eaa3d10b709fa6402` 的 [v0.3.1 完整验证与发布](https://github.com/doux93/sshd/actions/runs/43863394998) 三个任务全部成功。

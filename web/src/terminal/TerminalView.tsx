@@ -19,6 +19,7 @@ import {
 import { api, type CommandSuggestion } from "../api/client";
 import { useTheme, terminalTheme } from "../workspace/theme";
 import { CtrlKBar } from "../ai/CtrlKBar";
+import { matchesCommandShortcut } from "../ai/shortcut";
 
 const encoder = new TextEncoder();
 
@@ -200,6 +201,16 @@ export function TerminalView({
     // Ctrl+= / Ctrl+- / Ctrl+0, intercepted before the bytes reach the shell.
     // preventDefault also stops the browser's own zoom on the same chord.
     term.attachCustomKeyEventHandler((e) => {
+      if (matchesCommandShortcut(e)) {
+        e.preventDefault();
+        if (!readOnly && !e.repeat) {
+          setSuggestion(null);
+          setCtrlkError("");
+          setCtrlkOpen(true);
+        }
+        return false;
+      }
+      if (e.isComposing) return true;
       if (e.type !== "keydown" || !e.ctrlKey || e.altKey || e.metaKey)
         return true;
       switch (e.code) {
@@ -214,15 +225,6 @@ export function TerminalView({
         case "Digit0":
           e.preventDefault();
           resetFontSize();
-          return false;
-        case "KeyK":
-          if (readOnly) return false;
-          // Open the command-generation bar instead of sending Ctrl-K
-          // (0x0b) to the shell.
-          e.preventDefault();
-          setSuggestion(null);
-          setCtrlkError("");
-          setCtrlkOpen(true);
           return false;
         default:
           return true;

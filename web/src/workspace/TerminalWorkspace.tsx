@@ -3,8 +3,10 @@ import { useAppStore } from "../store";
 import { TerminalView } from "../terminal/TerminalView";
 import { readPreference, writePreference } from "./preferences";
 import { Icon } from "../components/Icon";
+import { useCommandShortcut, shortcutLabel } from "../ai/shortcut";
 
 export function TerminalWorkspace() {
+  const shortcut = useCommandShortcut();
   const { sessions, openIds, activeId, setActive } = useAppStore();
   const [split, setSplit] = useState(false);
   const [stacked, setStacked] = useState(
@@ -74,7 +76,7 @@ export function TerminalWorkspace() {
         <span className="ml-auto truncate text-[11px] text-slate-500">
           {split
             ? "蓝线标记当前终端 · 点击标签可替换当前窗格"
-            : "Alt+1…9 切换会话 · Ctrl+K 命令助手"}
+            : `Alt+1…9 切换会话 · ${shortcutLabel(shortcut)} 命令助手`}
         </span>
       </div>
       <div

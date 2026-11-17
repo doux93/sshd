@@ -206,6 +206,7 @@ export async function watchSockets(page: Page) {
     const state = {
       sockets: [] as WebSocket[],
       binary: 0,
+      sent: "",
       received: "",
       controls: [] as string[],
     };
@@ -223,8 +224,19 @@ export async function watchSockets(page: Page) {
         });
       }
       send(data: string | ArrayBufferLike | Blob | ArrayBufferView) {
-        if (typeof data !== "string") state.binary++;
-        else if (/"type":"(?:attach|detach)"/.test(data))
+        if (typeof data !== "string") {
+          state.binary++;
+          const bytes =
+            data instanceof ArrayBuffer
+              ? new Uint8Array(data)
+              : ArrayBuffer.isView(data)
+                ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
+                : null;
+          if (bytes)
+            state.sent = (
+              state.sent + new TextDecoder().decode(bytes.subarray(1))
+            ).slice(-4000);
+        } else if (/"type":"(?:attach|detach)"/.test(data))
           state.controls.push(data);
         super.send(data);
       }

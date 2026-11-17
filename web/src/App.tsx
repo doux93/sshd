@@ -6,7 +6,8 @@ import { TerminalWorkspace } from "./workspace/TerminalWorkspace";
 import { CommandLibrary } from "./workspace/CommandLibrary";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { TransferPanel } from "./sftp/TransferPanel";
-import { useTransfers, isPending } from "./sftp/transfers";
+import { uploadQueue, useTransfers, isPending } from "./sftp/transfers";
+import { protectPendingUploads, confirmUploadLogout } from "./sftp/leaveGuard";
 import { MonitorBar } from "./monitor/MonitorBar";
 import { FilePanel } from "./sftp/FilePanel";
 import { ConnectDialog } from "./ConnectDialog";
@@ -15,6 +16,7 @@ import { NodeDialog } from "./NodeDialog";
 import { HostKeyDialog } from "./HostKeyDialog";
 import { useShortcuts } from "./useShortcuts";
 import { AISettingsDialog } from "./ai/AISettingsDialog";
+import { useCommandShortcut, shortcutLabel } from "./ai/shortcut";
 import { MobileLayout } from "./mobile/MobileLayout";
 import { useIsMobile } from "./mobile/useIsMobile";
 import { Icon } from "./components/Icon";
@@ -28,6 +30,7 @@ import {
 } from "./workspace/preferences";
 
 export default function App() {
+  const shortcut = useCommandShortcut();
   const st = useAppStore(),
     mobile = useIsMobile();
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
@@ -59,6 +62,7 @@ export default function App() {
   const [showTransfers, setShowTransfers] = useState(false);
   const transfers = useTransfers();
   const pendingTransfers = transfers.filter(isPending).length;
+  useEffect(() => protectPendingUploads(uploadQueue, window), []);
   const [alertNode, setAlertNode] = useState(() =>
     new URL(location.href).searchParams.get("node"),
   );
@@ -139,6 +143,8 @@ export default function App() {
     else st.setActive(null);
   }
   async function logout() {
+    if (!confirmUploadLogout(uploadQueue, (message) => window.confirm(message)))
+      return;
     try {
       await api.logout();
       wsClient.disconnect();
@@ -364,7 +370,7 @@ export default function App() {
                   <span className="truncate text-slate-600">{active.cwd}</span>
                   {active.state === "active" && active.nodeId && (
                     <span className="ml-auto hidden text-slate-500 lg:inline">
-                      Ctrl+K 命令助手
+                      {shortcutLabel(shortcut)} 命令助手
                     </span>
                   )}
                   {active.state === "closed" && (

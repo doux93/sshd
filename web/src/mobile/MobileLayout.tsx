@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { uploadQueue } from "../sftp/transfers";
+import { confirmUploadLogout } from "../sftp/leaveGuard";
 import { useAppStore } from "../store";
 import { api, getMode, type MonitorSample } from "../api/client";
 import { wsClient, type ConnectionStatus } from "../ws/protocol";
@@ -42,6 +44,8 @@ export function MobileLayout({ status }: { status: ConnectionStatus }) {
     };
   }, [st.sessions]);
   async function logout() {
+    if (!confirmUploadLogout(uploadQueue, (message) => window.confirm(message)))
+      return;
     try {
       await api.logout();
       wsClient.disconnect();

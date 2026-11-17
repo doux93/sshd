@@ -2,18 +2,15 @@ package mcp
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 )
 
 // HTTPHandler returns an http.Handler that speaks MCP over plain
 // request/response JSON-RPC. POST a single request or a batch; the
 // response comes back as JSON. Notifications (no id) yield 202 with no
-// body. GET returns the allowed methods.
-//
-// This is the "streamable HTTP" transport in its simplest form: tool
-// calls in sshx are synchronous, so we never need a server-initiated
-// SSE stream. A future server-side notification (e.g. a monitor alert
-// pushed to an MCP client) can upgrade this to an SSE channel.
+// body. Other HTTP methods receive 405 and an Allow header.
+// This is a basic JSON-RPC transport, not full MCP Streamable HTTP.
 func (s *Server) HTTPHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -24,10 +21,20 @@ func (s *Server) HTTPHandler() http.Handler {
 			return
 		}
 		var raw json.RawMessage
-		if err := json.NewDecoder(r.Body).Decode(&raw); err != nil {
+		decoder := json.NewDecoder(r.Body)
+		if err := decoder.Decode(&raw); err != nil {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusBadRequest)
-			_, _ = w.Write([]byte(`{"error":"invalid JSON: ` + err.Error() + `"}`))
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid JSON: " + err.Error()})
+			return
+		}
+		// Reject trailing data before dispatching, so a malformed body cannot
+		// partially execute its first JSON-RPC request.
+		var extra json.RawMessage
+		if err := decoder.Decode(&extra); err != io.EOF {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid JSON: expected a single JSON value"})
 			return
 		}
 		resp := s.Handle(r.Context(), raw)

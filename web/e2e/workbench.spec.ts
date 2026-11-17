@@ -142,7 +142,7 @@ test("desktop connection test, terminal persistence, reconnect and AI preview", 
     },
   });
   await page.locator(".xterm-screen").click();
-  await page.keyboard.press("Control+k");
+  await page.keyboard.press("Control+Shift+k");
   await page.getByRole("textbox", { name: "命令需求" }).fill("显示当前目录");
   await page.getByRole("button", { name: "生成", exact: true }).click();
   await expect(
@@ -204,6 +204,67 @@ test("desktop connection test, terminal persistence, reconnect and AI preview", 
       return list.some((s: any) => s.id === id);
     })
     .toBe(false);
+});
+
+test("AI shortcut is configurable without reattaching and Ctrl+K reaches the shell by default", async ({
+  page,
+  context,
+  app,
+}, info) => {
+  test.skip(info.project.name !== "desktop", "Desktop keyboard preferences");
+  await loginAPI(context.request, app);
+  const host = await createHost(context.request, app, "Shortcut host");
+  const session = await connectHost(context.request, app, host.id);
+  await page.addInitScript(
+    (id) =>
+      localStorage.setItem(
+        "sshx.views.v2",
+        JSON.stringify({ ids: [id], active: id }),
+      ),
+    session.id,
+  );
+  await watchSockets(page);
+  await page.goto(app.url);
+  await page.locator(".xterm-screen").click();
+  await page.keyboard.press("Control+k");
+  await expect
+    .poll(() => page.evaluate(() => (window as any).__sshxTest.sent))
+    .toContain("\x0b");
+  await expect(page.getByRole("dialog", { name: "AI 命令助手" })).toHaveCount(
+    0,
+  );
+  const before = await page.evaluate(() => (window as any).__sshxTest.binary);
+  await page.keyboard.press("Control+Shift+k");
+  await expect(page.getByRole("dialog", { name: "AI 命令助手" })).toBeVisible();
+  expect(await page.evaluate(() => (window as any).__sshxTest.binary)).toBe(
+    before,
+  );
+  await page.getByRole("button", { name: "关闭 AI 助手" }).click();
+  const controls = await page.evaluate(
+    () => (window as any).__sshxTest.controls.length,
+  );
+  await page.getByRole("button", { name: "AI 设置", exact: true }).click();
+  const settings = page.getByRole("dialog", { name: "AI 设置", exact: true });
+  await expect(settings.getByLabel("命令助手快捷键")).toHaveValue(
+    "ctrl-shift-k",
+  );
+  await settings.getByLabel("命令助手快捷键").selectOption("ctrl-k");
+  await page.screenshot({
+    path: info.outputPath("ai-shortcut-settings.png"),
+    animations: "disabled",
+    fullPage: true,
+  });
+  await settings.getByRole("button", { name: "关闭", exact: true }).click();
+  expect(
+    await page.evaluate(() => (window as any).__sshxTest.controls.length),
+  ).toBe(controls);
+  await page.locator(".xterm-screen").click();
+  await page.keyboard.press("Control+k");
+  await expect(page.getByRole("dialog", { name: "AI 命令助手" })).toBeVisible();
+  await page.reload();
+  await page.locator(".xterm-screen").click();
+  await page.keyboard.press("Control+k");
+  await expect(page.getByRole("dialog", { name: "AI 命令助手" })).toBeVisible();
 });
 
 test("alert deep link selects the host, acknowledgment survives reload", async ({
@@ -471,6 +532,27 @@ test("SFTP upload survives panel closure and cancelled or failed jobs retry", as
   const queue = page.getByRole("complementary", { name: "上传队列" });
   await expect(queue).toBeVisible();
   await expect.poll(() => intercepted).toBe(true);
+  // Refusing a browser reload keeps the original in-flight upload and queue.
+  const leavePrompt = page.waitForEvent("dialog");
+  const reloading = page.reload().catch(() => {}); // dismiss deliberately aborts navigation
+  const leaveDialog = await leavePrompt;
+  expect(leaveDialog.type()).toBe("beforeunload");
+  await leaveDialog.dismiss();
+  await reloading;
+  await expect(queue).toBeVisible();
+  // Logout must ask before revoking the credential, not after navigating away.
+  const logoutPrompt = page.waitForEvent("dialog");
+  const logoutClick = page
+    .getByRole("button", { name: "退出登录", exact: true })
+    .click();
+  const logoutDialog = await logoutPrompt;
+  expect(logoutDialog.type()).toBe("confirm");
+  await logoutDialog.dismiss();
+  await logoutClick;
+  expect((await context.request.get(app.url + "/api/sessions")).status()).toBe(
+    200,
+  );
+  await expect(queue.getByRole("button", { name: "取消上传" })).toBeVisible();
   await queue.getByRole("button", { name: "取消上传" }).click();
   await expect(queue.getByText("已取消", { exact: true })).toBeVisible();
   release();
@@ -521,6 +603,19 @@ test("SFTP upload survives panel closure and cancelled or failed jobs retry", as
     path: info.outputPath("upload-queue.png"),
     fullPage: true,
   });
+  const remainingPrompts: string[] = [];
+  const rejectUnexpectedPrompt = async (
+    dialog: import("@playwright/test").Dialog,
+  ) => {
+    remainingPrompts.push(dialog.type());
+    await dialog.dismiss();
+  };
+  page.on("dialog", rejectUnexpectedPrompt);
+  await page.reload();
+  expect(remainingPrompts).toEqual([]);
+  page.off("dialog", rejectUnexpectedPrompt);
+  await page.getByRole("button", { name: "上传", exact: true }).click();
+  await expect(queue).toContainText("在文件面板选择或拖入文件");
 });
 
 test("recovery UI guards endpoint changes and separates terminate from forgetting", async ({

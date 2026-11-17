@@ -20,7 +20,7 @@ export function TransferPanel({ onClose }: { onClose(): void }) {
         <div>
           <strong>上传队列</strong>
           <p className="mt-1 text-xs text-slate-400">
-            切换会话仍继续上传；关闭整个网页将中断任务。
+            切换会话或收起面板仍继续上传；有任务进行时，刷新或关闭网页会提醒。
           </p>
         </div>
         <button

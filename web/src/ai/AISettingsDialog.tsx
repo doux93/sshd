@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { api, type AIConfig } from "../api/client";
+import {
+  useCommandShortcut,
+  setCommandShortcut,
+  type CommandShortcut,
+} from "./shortcut";
 
-// Modal for the LLM provider config used by Ctrl+K. The API key is
+// Modal for the LLM provider and local keyboard preference. The API key is
 // stored in the vault server-side; the UI never receives it back, only
 // a hasKey flag. Leaving the key field blank keeps the stored key.
 export function AISettingsDialog({
@@ -11,6 +16,7 @@ export function AISettingsDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const shortcut = useCommandShortcut();
   const [provider, setProvider] = useState("openai");
   const [model, setModel] = useState("");
   const [baseURL, setBaseURL] = useState("");
@@ -60,14 +66,44 @@ export function AISettingsDialog({
       onClick={onClose}
     >
       <div
-        className="w-[min(28rem,92%)] rounded-lg border border-slate-600 bg-slate-800 p-5 shadow-xl"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ai-settings-title"
+        className="max-h-[90vh] w-[min(28rem,92%)] overflow-y-auto rounded-lg border border-slate-600 bg-slate-800 p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-3 text-base font-semibold text-slate-100">
-          AI 设置 (Ctrl+K)
+        <h2
+          id="ai-settings-title"
+          className="mb-3 text-base font-semibold text-slate-100"
+        >
+          AI 设置
         </h2>
         <p className="mb-4 text-xs text-slate-400">
           配置命令生成用的 LLM。API key 存在凭据库,不会回传前端。
+        </p>
+        <label
+          htmlFor="ai-shortcut"
+          className="mb-1 block text-xs text-slate-400"
+        >
+          命令助手快捷键
+        </label>
+        <select
+          id="ai-shortcut"
+          value={shortcut}
+          onChange={(e) =>
+            setCommandShortcut(e.target.value as CommandShortcut)
+          }
+          className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-slate-100"
+        >
+          <option value="ctrl-shift-k">
+            Ctrl+Shift+K（推荐，保留 Shell 的 Ctrl+K）
+          </option>
+          <option value="ctrl-k">
+            Ctrl+K（兼容旧习惯，占用 Shell 快捷键）
+          </option>
+        </select>
+        <p className="mb-4 mt-1 text-xs text-slate-400">
+          立即生效，保存在当前浏览器；切换快捷键不会重连终端。
         </p>
         <label className="mb-1 block text-xs text-slate-400">Provider</label>
         <select

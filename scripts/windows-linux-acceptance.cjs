@@ -243,11 +243,16 @@ printf '%s' "$port"
     await page.locator('.xterm-screen').click();
     browserInput.events.push({ event: 'keyboard-start', ms: Date.now() - browserStart });
     browserInput.focusBefore = await page.evaluate(() => document.activeElement?.className);
+    // Exercise Bash readline itself: Ctrl+K must reach Linux, not open the AI UI.
+    await page.keyboard.type("echo SHOULD_NOT_EXECUTE");
+    await page.keyboard.press('Home');
+    await page.keyboard.press('Control+k');
     await page.keyboard.type("printf '\\nUI_SUM:%s\\n' \"$((17+25))\"");
     await page.keyboard.press('Enter');
     await until(() => terminal.output.includes('UI_SUM:42'), 'Browser keyboard did not reach Linux shell');
     assert.doesNotMatch(browserInput.input, /\x1b\[[?>=][0-9;]*c/, 'Replayed device query generated a late terminal reply');
-    check('Native Windows Chromium terminal keyboard reaches Linux shell');
+    assert.ok(browserInput.input.includes('\x0b'), 'Ctrl+K did not reach the remote shell');
+    check('Native Windows Chromium terminal keyboard and Ctrl+K reach Linux shell');
 
     const payload = randomBytes(2 * 1024 * 1024);
     const localFile = join(local, '中文 空格 文件.bin'); fs.writeFileSync(localFile, payload);
