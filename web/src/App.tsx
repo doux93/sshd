@@ -16,7 +16,6 @@ import { NodeDialog } from "./NodeDialog";
 import { HostKeyDialog } from "./HostKeyDialog";
 import { useShortcuts } from "./useShortcuts";
 import { AISettingsDialog } from "./ai/AISettingsDialog";
-import { useCommandShortcut, shortcutLabel } from "./ai/shortcut";
 import { MobileLayout } from "./mobile/MobileLayout";
 import { useIsMobile } from "./mobile/useIsMobile";
 import { Icon } from "./components/Icon";
@@ -30,7 +29,6 @@ import {
 } from "./workspace/preferences";
 
 export default function App() {
-  const shortcut = useCommandShortcut();
   const st = useAppStore(),
     mobile = useIsMobile();
   const [status, setStatus] = useState<ConnectionStatus>("connecting");
@@ -52,14 +50,15 @@ export default function App() {
   const [showMonitor, setShowMonitor] = useState(
     () => readPreference("layout.showMonitor", true) === true,
   );
-  const [panel, setPanel] = useState<"sessions" | "alerts" | null>(() =>
+  const [panel, setPanel] = useState<
+    "sessions" | "alerts" | "transfers" | null
+  >(() =>
     new URL(location.href).searchParams.get("panel") === "alerts"
       ? "alerts"
       : null,
   );
   const [showAI, setShowAI] = useState(false);
   const [showCommands, setShowCommands] = useState(false);
-  const [showTransfers, setShowTransfers] = useState(false);
   const transfers = useTransfers();
   const pendingTransfers = transfers.filter(isPending).length;
   useEffect(() => protectPendingUploads(uploadQueue, window), []);
@@ -268,10 +267,10 @@ export default function App() {
             <span className="hidden lg:inline">常用命令</span>
           </button>
           <button
-            className={`toolbar-button ${showTransfers ? "selected" : ""}`}
+            className={`toolbar-button ${panel === "transfers" ? "selected" : ""}`}
             aria-label="上传"
             title="上传"
-            onClick={() => setShowTransfers(!showTransfers)}
+            onClick={() => setPanel(panel === "transfers" ? null : "transfers")}
           >
             <Icon name="upload" size={15} />
             <span className="hidden lg:inline">上传</span>
@@ -302,44 +301,42 @@ export default function App() {
             {unread > 0 && <span className="count-badge">{unread}</span>}
           </button>
         </header>
-        <div
-          className="flex h-11 shrink-0 items-end gap-1 overflow-x-auto border-b border-slate-800 px-2"
-          role="tablist"
-          aria-label="打开的会话"
-        >
-          {open.map((s, i) => (
-            <div
-              key={s.id}
-              className={`flex shrink-0 items-center gap-1 rounded-t-lg border px-2 py-1 ${s.id === st.activeId ? "border-slate-600 border-b-transparent bg-[var(--terminal-bg)]" : "border-transparent text-slate-400"}`}
-            >
-              <button
-                role="tab"
-                aria-selected={s.id === st.activeId}
-                className="flex max-w-52 items-center gap-2 px-1 py-1 text-sm"
-                title={`${s.target} · Alt+${i + 1}`}
-                onClick={() => st.setActive(s.id)}
+        <div className="session-bar">
+          <div className="session-tabs" role="tablist" aria-label="打开的会话">
+            {open.map((s, i) => (
+              <div
+                key={s.id}
+                className={`flex shrink-0 items-center gap-1 rounded-t-lg border px-2 py-1 ${s.id === st.activeId ? "border-slate-600 border-b-transparent bg-[var(--terminal-bg)]" : "border-transparent text-slate-400"}`}
               >
-                <span
-                  className={`status-dot ${s.state === "active" ? "bg-emerald-400" : "bg-slate-500"}`}
-                />
-                <span className="truncate">{s.label}</span>
-              </button>
-              <button
-                className="icon-button !h-6 !w-6"
-                onClick={() => st.closeView(s.id)}
-                aria-label={`关闭视图 ${s.label}，保留 SSH 会话`}
-                title="关闭视图，保留 SSH 会话"
-              >
-                <Icon name="close" size={13} />
-              </button>
-            </div>
-          ))}
-          {open.length === 0 && (
-            <span className="px-3 pb-3 text-xs text-slate-500">
-              当前没有打开的视图
-            </span>
-          )}
-          <div className="ml-auto flex shrink-0 gap-1 pb-1">
+                <button
+                  role="tab"
+                  aria-selected={s.id === st.activeId}
+                  className="flex max-w-52 items-center gap-2 px-1 py-1 text-sm"
+                  title={`${s.target} · Alt+${i + 1}`}
+                  onClick={() => st.setActive(s.id)}
+                >
+                  <span
+                    className={`status-dot ${s.state === "active" ? "bg-emerald-400" : "bg-slate-500"}`}
+                  />
+                  <span className="truncate">{s.label}</span>
+                </button>
+                <button
+                  className="icon-button !h-7 !w-7"
+                  onClick={() => st.closeView(s.id)}
+                  aria-label={`关闭视图 ${s.label}，保留 SSH 会话`}
+                  title="关闭视图，保留 SSH 会话"
+                >
+                  <Icon name="close" size={13} />
+                </button>
+              </div>
+            ))}
+            {open.length === 0 && (
+              <span className="px-3 pb-3 text-xs text-slate-500">
+                当前没有打开的视图
+              </span>
+            )}
+          </div>
+          <div className="session-tools">
             <button
               disabled={!active?.hasFiles}
               className={`toolbar-button ${showFiles ? "selected" : ""}`}
@@ -362,33 +359,6 @@ export default function App() {
           <div className="flex min-w-0 flex-1 flex-col">
             {active ? (
               <>
-                <div className="flex h-9 shrink-0 items-center gap-3 border-b border-slate-800/70 px-4 text-xs">
-                  <span className="truncate font-mono text-slate-400">
-                    {active.target}
-                    {active.recoveryId ? " · tmux 保活" : ""}
-                  </span>
-                  <span className="truncate text-slate-600">{active.cwd}</span>
-                  {active.state === "active" && active.nodeId && (
-                    <span className="ml-auto hidden text-slate-500 lg:inline">
-                      {shortcutLabel(shortcut)} 命令助手
-                    </span>
-                  )}
-                  {active.state === "closed" && (
-                    <span className="ml-auto text-amber-300">
-                      {active.recoveryId
-                        ? "连接已断开 · 远端可尝试恢复"
-                        : "会话已结束"}
-                      {active.nodeId && (
-                        <button
-                          className="ml-3 underline"
-                          onClick={() => st.reconnectClosedSession(active.id)}
-                        >
-                          重新连接
-                        </button>
-                      )}
-                    </span>
-                  )}
-                </div>
                 <TerminalWorkspace />
                 {showFiles && active.hasFiles && (
                   <>
@@ -408,7 +378,8 @@ export default function App() {
                       <FilePanel
                         key={active.id}
                         sessionId={active.id}
-                        onTransfers={() => setShowTransfers(true)}
+                        onTransfers={() => setPanel("transfers")}
+                        onClose={() => setShowFiles(false)}
                       />
                     </div>
                   </>
@@ -507,8 +478,8 @@ export default function App() {
               />
             </div>
           )}
-          {showTransfers && (
-            <TransferPanel onClose={() => setShowTransfers(false)} />
+          {panel === "transfers" && (
+            <TransferPanel onClose={() => setPanel(null)} />
           )}
         </main>
       </div>
@@ -523,7 +494,7 @@ export default function App() {
       {st.error && (
         <div
           role="alert"
-          className="fixed bottom-4 right-4 z-[90] flex max-w-md items-start gap-3 rounded-xl border border-rose-800 bg-rose-950 p-4 text-sm shadow-xl"
+          className="fixed bottom-4 right-4 z-[90] flex w-[calc(100%-2rem)] max-w-md items-start gap-3 rounded-xl border border-rose-800 bg-rose-950 p-4 text-sm shadow-xl"
         >
           <span className="whitespace-pre-wrap">{st.error}</span>
           <button aria-label="关闭错误提示" onClick={() => st.setError(null)}>

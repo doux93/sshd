@@ -1,3 +1,4 @@
+import { Modal } from "./components/Modal";
 // Quick connect: ad-hoc session without saving a node. Goes through the
 // same TOFU host-key flow as saved connections.
 import { useState, type FormEvent } from "react";
@@ -58,21 +59,23 @@ export function ConnectDialog() {
     setBusy(false);
   };
 
-  const field =
-    "w-full rounded-md border border-slate-600 bg-slate-800 px-3 py-2 text-sm " +
-    "text-slate-50 outline-none focus:border-blue-500";
+  const field = "form-field";
+  const close = () => {
+    setPassword("");
+    setError("");
+    setHostKeyPrompt(null);
+    setQuickConnectOpen(false);
+  };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
-      <form
-        onSubmit={submit}
-        className="w-96 rounded-xl border border-slate-600 bg-slate-900 p-6 shadow-2xl"
-      >
+    <Modal label="快速连接" className="max-w-md" onClose={close} busy={busy}>
+      <form onSubmit={submit}>
         <h2 className="mb-4 text-lg font-semibold text-slate-50">快速连接</h2>
         <div className="space-y-3">
           <div className="flex gap-2">
             <input
               className={field}
+              aria-label="主机地址"
               placeholder="主机地址"
               value={host}
               onChange={(e) => setHost(e.target.value)}
@@ -80,7 +83,12 @@ export function ConnectDialog() {
               required
             />
             <input
-              className={`${field} w-24`}
+              className={`${field} !w-24 shrink-0`}
+              aria-label="端口"
+              type="number"
+              min={1}
+              max={65535}
+              required
               placeholder="端口"
               value={port}
               onChange={(e) => setPort(e.target.value)}
@@ -88,6 +96,7 @@ export function ConnectDialog() {
           </div>
           <input
             className={field}
+            aria-label="用户名"
             placeholder="用户名"
             value={user}
             onChange={(e) => setUser(e.target.value)}
@@ -96,6 +105,8 @@ export function ConnectDialog() {
           <input
             className={field}
             type="password"
+            aria-label="密码"
+            autoComplete="current-password"
             placeholder="密码"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -114,20 +125,17 @@ export function ConnectDialog() {
         <div className="mt-5 flex justify-end gap-2">
           <button
             type="button"
-            onClick={() => setQuickConnectOpen(false)}
-            className="rounded-md px-4 py-2 text-sm text-slate-300 hover:text-slate-50"
+            onClick={close}
+            disabled={busy}
+            className="button-secondary"
           >
             取消
           </button>
-          <button
-            type="submit"
-            disabled={busy}
-            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
-          >
+          <button type="submit" disabled={busy} className="button-primary">
             {busy ? "连接中…" : "连接"}
           </button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 }

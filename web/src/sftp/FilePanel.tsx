@@ -19,9 +19,11 @@ function parentOf(p: string): string {
 export function FilePanel({
   sessionId,
   onTransfers,
+  onClose,
 }: {
   sessionId: string;
   onTransfers?(): void;
+  onClose?(): void;
 }) {
   const jobs = useTransfers();
   const target = useAppStore(
@@ -43,7 +45,13 @@ export function FilePanel({
   const [path, setPath] = useState(".");
   const [draftPath, setDraftPath] = useState(".");
   const [entries, setEntries] = useState<FileEntry[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const [filter, setFilter] = useState("");
+  const [dragging, setDragging] = useState(false);
+  const dragDepth = useRef(0);
+  const currentPath = useRef(".");
   const [follow, setFollow] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -51,10 +59,14 @@ export function FilePanel({
     async (target: string) => {
       const current = ++generation.current;
       setLoading(true);
+      setLoadError("");
       try {
         const res = await api.listFiles(sessionId, target);
         if (current !== generation.current) return;
+        currentPath.current = res.path;
         setPath(res.path);
+        setReady(true);
+        setFilter("");
         setDraftPath(res.path);
         // Directories first, then case-insensitive by name.
         setEntries(
@@ -69,8 +81,12 @@ export function FilePanel({
           ),
         );
       } catch (err) {
-        if (current === generation.current)
-          setError(err instanceof Error ? err.message : String(err));
+        if (current === generation.current) {
+          setLoadError(
+            `无法打开 ${target}：${err instanceof Error ? err.message : String(err)}`,
+          );
+          setDraftPath(currentPath.current);
+        }
       } finally {
         if (current === generation.current) setLoading(false);
       }
@@ -95,16 +111,12 @@ export function FilePanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [terminalCwd, follow]);
 
-  const enter = (entry: FileEntry) => {
-    if (entry.isDir) load(`${path.replace(/\/+$/, "")}/${entry.name}`);
-    else
-      window.open(
-        api.downloadUrl(sessionId, `${path.replace(/\/+$/, "")}/${entry.name}`),
-      );
-  };
-
   const doUpload = (files: FileList | null) => {
     if (!files?.length) return;
+    if (loading || !ready) {
+      setLoadError("请等待目录加载成功后再上传。");
+      return;
+    }
     const list = Array.from(files);
     const existing = list.filter((f) => entries.some((e) => e.name === f.name));
     if (
@@ -165,21 +177,42 @@ export function FilePanel({
     }
   };
 
+  const visible = entries.filter((entry) =>
+    entry.name.toLocaleLowerCase().includes(filter.toLocaleLowerCase()),
+  );
   return (
-    <div
-      className="flex h-full flex-col bg-slate-900 text-xs"
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={(e) => {
-        e.preventDefault();
-        doUpload(e.dataTransfer.files);
+    <section
+      aria-label="远端文件"
+      aria-busy={loading}
+      className={`file-panel ${dragging ? "file-drop-active" : ""}`}
+      onDragEnter={(event) => {
+        event.preventDefault();
+        if (event.dataTransfer.types.includes("Files")) {
+          dragDepth.current++;
+          setDragging(true);
+        }
+      }}
+      onDragLeave={() => {
+        if (--dragDepth.current <= 0) {
+          dragDepth.current = 0;
+          setDragging(false);
+        }
+      }}
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={(event) => {
+        event.preventDefault();
+        dragDepth.current = 0;
+        setDragging(false);
+        doUpload(event.dataTransfer.files);
       }}
     >
-      {/* 工具栏 */}
-      <div className="flex items-center gap-1 border-b border-slate-700 px-2 py-1.5">
+      <div className="file-toolbar">
         <button
-          onClick={() => load(parentOf(path))}
-          className="rounded px-1.5 py-0.5 text-slate-300 hover:bg-slate-700 hover:text-slate-50"
+          className="icon-button"
+          aria-label="上级目录"
           title="上级目录"
+          disabled={loading || !ready || path === "/"}
+          onClick={() => load(parentOf(path))}
         >
           <Icon
             name="chevron"
@@ -187,119 +220,202 @@ export function FilePanel({
             style={{ transform: "rotate(-90deg)" }}
           />
         </button>
-        <input
-          className="min-w-0 flex-1 rounded border border-transparent bg-slate-800 px-2 py-1 font-mono text-slate-200 outline-none focus:border-blue-600"
-          aria-label="远端目录"
-          value={draftPath}
-          onChange={(e) => setDraftPath(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && load(draftPath)}
-          spellCheck={false}
-        />
+        <form
+          className="min-w-0 flex-1"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (draftPath.trim()) void load(draftPath.trim());
+          }}
+        >
+          <input
+            className="file-path"
+            aria-label="远端目录"
+            value={draftPath}
+            onChange={(event) => setDraftPath(event.target.value)}
+            spellCheck={false}
+            title={path}
+          />
+        </form>
         <button
+          className="icon-button"
+          aria-label="刷新目录"
+          title="刷新目录"
+          disabled={loading}
           onClick={() => load(path)}
-          className="rounded px-1.5 py-0.5 text-slate-300 hover:bg-slate-700 hover:text-slate-50"
-          title="刷新"
         >
           <Icon name="refresh" size={16} />
         </button>
         <button
-          onClick={mkdir}
-          className="rounded px-1.5 py-0.5 text-slate-300 hover:bg-slate-700 hover:text-slate-50"
+          className="icon-button"
+          aria-label="新建目录"
           title="新建目录"
+          disabled={loading || !ready}
+          onClick={mkdir}
         >
           <Icon name="folder" size={16} />
         </button>
         <button
-          onClick={() => fileInputRef.current?.click()}
-          className="rounded px-1.5 py-0.5 text-slate-300 hover:bg-slate-700 hover:text-slate-50"
+          className="toolbar-button"
           aria-label="上传文件"
-          title="上传文件(也可直接拖入)"
+          title="上传文件，也可拖入此区域"
+          disabled={loading || !ready}
+          onClick={() => fileInputRef.current?.click()}
         >
           <Icon name="upload" size={16} />
+          <span className="file-action-label">上传</span>
         </button>
-        <label
-          className="flex cursor-pointer items-center gap-1 rounded px-1.5 py-0.5 text-slate-300 hover:text-slate-50"
-          title="终端 cd 时,文件面板自动跟随(需要连接时开启 shell 集成)"
-        >
-          <input
-            type="checkbox"
-            checked={follow}
-            onChange={(e) => setFollow(e.target.checked)}
-            className="accent-blue-600"
-          />
-          跟随终端
-        </label>
+        {onClose && (
+          <button
+            className="icon-button"
+            aria-label="收起文件面板"
+            title="收起文件面板"
+            onClick={onClose}
+          >
+            <Icon name="close" size={16} />
+          </button>
+        )}
         <input
           ref={fileInputRef}
           type="file"
           multiple
           hidden
-          onChange={(e) => {
-            doUpload(e.target.files);
-            e.target.value = "";
+          onChange={(event) => {
+            doUpload(event.target.files);
+            event.target.value = "";
           }}
         />
       </div>
-
+      <div className="file-filterbar">
+        <label className="file-filter">
+          <Icon name="search" size={14} />
+          <input
+            aria-label="筛选文件"
+            placeholder="筛选当前目录"
+            value={filter}
+            onChange={(event) => setFilter(event.target.value)}
+          />
+        </label>
+        <span className="text-xs text-slate-400">
+          {loading
+            ? "加载中…"
+            : filter
+              ? `${visible.length} / ${entries.length} 项`
+              : `${entries.length} 项`}
+        </span>
+        <label
+          className="ml-auto flex shrink-0 cursor-pointer items-center gap-1.5 text-xs text-slate-400"
+          title="终端切换目录时自动跟随，需要开启 Shell 集成"
+        >
+          <input
+            type="checkbox"
+            checked={follow}
+            onChange={(event) => setFollow(event.target.checked)}
+          />
+          跟随终端
+        </label>
+      </div>
+      {loadError && (
+        <div role="alert" className="file-error">
+          <span>{loadError}</span>
+          <button
+            className="toolbar-button"
+            onClick={() => load(path)}
+            disabled={loading}
+          >
+            重试
+          </button>
+        </div>
+      )}
       {pending > 0 && (
         <button
-          className="border-b border-slate-700 px-3 py-2 text-left text-sky-300"
+          className="border-b border-slate-700 px-3 py-2 text-left text-xs text-sky-300"
           onClick={onTransfers}
         >
           {pending} 个上传任务进行中 · 查看队列
         </button>
       )}
-
-      {/* 文件列表 */}
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {loading && entries.length === 0 ? (
-          <p className="py-6 text-center text-slate-400">加载中…</p>
-        ) : entries.length === 0 ? (
-          <p className="py-6 text-center text-slate-400">
-            空目录(可拖入文件上传)
+      <div className="min-h-0 flex-1 overflow-auto">
+        {!visible.length ? (
+          <p className="empty-copy !py-5 !text-xs">
+            {loading
+              ? "正在读取远端目录…"
+              : loadError && !ready
+                ? "目录尚未加载，请重试。"
+                : filter
+                  ? "没有匹配的文件"
+                  : "目录为空，可拖入文件上传。"}
           </p>
         ) : (
-          <table className="w-full">
+          <table className="file-table">
+            <thead>
+              <tr>
+                <th>名称</th>
+                <th className="text-right">大小</th>
+                <th className="file-mode">权限</th>
+                <th>
+                  <span className="sr-only">操作</span>
+                </th>
+              </tr>
+            </thead>
             <tbody>
-              {entries.map((entry) => (
-                <tr
-                  key={entry.name}
-                  onDoubleClick={() => enter(entry)}
-                  className="group cursor-default hover:bg-slate-800"
-                  title={entry.isDir ? "双击进入目录" : "双击下载"}
-                >
-                  <td className="w-5 py-1 pl-2 text-slate-400">
-                    <Icon
-                      name={
-                        entry.isLink ? "link" : entry.isDir ? "folder" : "file"
-                      }
-                      size={14}
-                    />
+              {visible.map((entry) => (
+                <tr key={entry.name} className="group">
+                  <td>
+                    {entry.isDir ? (
+                      <button
+                        className="file-entry"
+                        title={`打开目录 ${entry.name}`}
+                        disabled={loading}
+                        onClick={() =>
+                          load(`${path.replace(/\/+$/, "")}/${entry.name}`)
+                        }
+                      >
+                        <Icon
+                          name={entry.isLink ? "link" : "folder"}
+                          size={16}
+                        />
+                        <span className="truncate">{entry.name}</span>
+                      </button>
+                    ) : (
+                      <a
+                        className="file-entry"
+                        title={`下载 ${entry.name}`}
+                        download={entry.name}
+                        href={api.downloadUrl(
+                          sessionId,
+                          `${path.replace(/\/+$/, "")}/${entry.name}`,
+                        )}
+                      >
+                        <Icon name={entry.isLink ? "link" : "file"} size={16} />
+                        <span className="truncate">{entry.name}</span>
+                      </a>
+                    )}
                   </td>
-                  <td className="min-w-0 max-w-0 truncate py-1 pr-2 text-slate-200">
-                    {entry.name}
+                  <td className="whitespace-nowrap text-right text-slate-400">
+                    {entry.isDir ? "—" : formatSize(entry.size)}
                   </td>
-                  <td className="whitespace-nowrap py-1 pr-2 text-right text-slate-400">
-                    {entry.isDir ? "" : formatSize(entry.size)}
-                  </td>
-                  <td className="whitespace-nowrap py-1 pr-2 font-mono text-[10px] text-slate-400">
+                  <td className="file-mode font-mono text-slate-400">
                     {entry.mode}
                   </td>
-                  <td className="w-14 whitespace-nowrap py-1 pr-2 text-right">
-                    <span className="inline-flex opacity-0 group-hover:opacity-100 group-focus-within:opacity-100">
+                  <td>
+                    <span className="file-row-actions">
                       <button
-                        onClick={() => rename(entry)}
-                        className="px-1 text-slate-400 hover:text-slate-100"
+                        className="icon-button"
+                        aria-label={`重命名 ${entry.name}`}
                         title="重命名"
+                        disabled={loading}
+                        onClick={() => rename(entry)}
                       >
-                        <Icon name="edit" size={14} />
+                        <Icon name="edit" size={15} />
                       </button>
                       <button
-                        onClick={() => remove(entry)}
-                        className="px-1 text-slate-400 hover:text-red-400"
+                        className="icon-button hover:!text-rose-300"
+                        aria-label={`删除 ${entry.name}`}
                         title="删除"
+                        disabled={loading}
+                        onClick={() => remove(entry)}
                       >
-                        <Icon name="trash" size={14} />
+                        <Icon name="trash" size={15} />
                       </button>
                     </span>
                   </td>
@@ -309,6 +425,12 @@ export function FilePanel({
           </table>
         )}
       </div>
-    </div>
+      {dragging && (
+        <div className="file-drop-hint" aria-hidden="true">
+          <Icon name="upload" size={24} />
+          <span>松开上传到当前目录</span>
+        </div>
+      )}
+    </section>
   );
 }

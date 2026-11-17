@@ -1,3 +1,4 @@
+import { Modal } from "../components/Modal";
 import { useState } from "react";
 import { api, connectionError, type RecoveryInfo } from "../api/client";
 import { useAppStore } from "../store";
@@ -9,10 +10,12 @@ export function RecoveryList({ onOpen }: { onOpen(): void }) {
     action: "terminate" | "forget";
   } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [error, setLocalError] = useState("");
   async function confirm() {
     if (!confirmation) return;
     const { row, action } = confirmation;
     setBusy(true);
+    setLocalError("");
     try {
       if (action === "forget") {
         await api.forgetRecovery(row.id);
@@ -20,7 +23,7 @@ export function RecoveryList({ onOpen }: { onOpen(): void }) {
       } else await st.recoverTerminal(row.id, "terminate");
       setConfirmation(null);
     } catch (error) {
-      st.setError(connectionError(error));
+      setLocalError(connectionError(error));
     } finally {
       setBusy(false);
     }
@@ -88,52 +91,55 @@ export function RecoveryList({ onOpen }: { onOpen(): void }) {
         </article>
       ))}
       {confirmation && (
-        <div className="dialog-backdrop">
-          <section
-            role="alertdialog"
-            aria-modal="true"
-            aria-label={
-              confirmation.action === "terminate"
-                ? "结束远端终端"
-                : "忘记恢复记录"
-            }
-            className="dialog-card max-w-md"
-          >
-            <h2 className="text-lg font-semibold">
-              {confirmation.action === "terminate"
-                ? "结束远端终端？"
-                : "忘记恢复记录？"}
-            </h2>
-            <p className="my-3 break-all text-sm">
-              {confirmation.row.label} · {confirmation.row.target}
+        <Modal
+          onClose={() => {
+            setLocalError("");
+            setConfirmation(null);
+          }}
+          busy={busy}
+          kind="alertdialog"
+          label={
+            confirmation.action === "terminate"
+              ? "结束远端终端"
+              : "忘记恢复记录"
+          }
+          className="max-w-md"
+        >
+          <h2 className="text-lg font-semibold">
+            {confirmation.action === "terminate"
+              ? "结束远端终端？"
+              : "忘记恢复记录？"}
+          </h2>
+          <p className="my-3 break-all text-sm">
+            {confirmation.row.label} · {confirmation.row.target}
+          </p>
+          <p className="text-sm leading-6 text-slate-400">
+            {confirmation.action === "terminate"
+              ? "这会结束该 tmux 会话的全部窗口，正在运行的任务可能中断。只想暂时离开，请使用“断开并保留”。"
+              : "仅删除工作台中的恢复入口，不停止远端任务。需要时请先保存上面的手动接入命令；下次连接将创建新终端。"}
+          </p>
+          {error && (
+            <p role="alert" className="mt-3 text-sm text-rose-300">
+              {error}
             </p>
-            <p className="text-sm leading-6 text-slate-400">
-              {confirmation.action === "terminate"
-                ? "这会结束该 tmux 会话的全部窗口，正在运行的任务可能中断。只想暂时离开，请使用“断开并保留”。"
-                : "仅删除工作台中的恢复入口，不停止远端任务。需要时请先保存上面的手动接入命令；下次连接将创建新终端。"}
-            </p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                className="button-secondary"
-                disabled={busy}
-                onClick={() => setConfirmation(null)}
-              >
-                取消
-              </button>
-              <button
-                className="button-danger"
-                disabled={busy}
-                onClick={confirm}
-              >
-                {busy
-                  ? "处理中…"
-                  : confirmation.action === "terminate"
-                    ? "确认结束远端终端"
-                    : "确认忘记恢复记录"}
-              </button>
-            </div>
-          </section>
-        </div>
+          )}
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              className="button-secondary"
+              disabled={busy}
+              onClick={() => setConfirmation(null)}
+            >
+              取消
+            </button>
+            <button className="button-danger" disabled={busy} onClick={confirm}>
+              {busy
+                ? "处理中…"
+                : confirmation.action === "terminate"
+                  ? "确认结束远端终端"
+                  : "确认忘记恢复记录"}
+            </button>
+          </div>
+        </Modal>
       )}
     </section>
   );

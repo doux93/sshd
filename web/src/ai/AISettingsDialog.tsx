@@ -1,21 +1,23 @@
-import { useEffect, useState } from "react";
-import { api, type AIConfig } from "../api/client";
+import { useEffect, useState, type FormEvent } from "react";
+import { api } from "../api/client";
+import { Modal } from "../components/Modal";
+import { Icon } from "../components/Icon";
 import {
   useCommandShortcut,
   setCommandShortcut,
   type CommandShortcut,
 } from "./shortcut";
 
-// Modal for the LLM provider and local keyboard preference. The API key is
-// stored in the vault server-side; the UI never receives it back, only
-// a hasKey flag. Leaving the key field blank keeps the stored key.
 export function AISettingsDialog({
   open,
   onClose,
 }: {
   open: boolean;
-  onClose: () => void;
+  onClose(): void;
 }) {
+  return open ? <AISettingsForm onClose={onClose} /> : null;
+}
+function AISettingsForm({ onClose }: { onClose(): void }) {
   const shortcut = useCommandShortcut();
   const [provider, setProvider] = useState("openai");
   const [model, setModel] = useState("");
@@ -23,147 +25,196 @@ export function AISettingsDialog({
   const [apiKey, setApiKey] = useState("");
   const [hasKey, setHasKey] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState("");
-
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [attempt, setAttempt] = useState(0);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   useEffect(() => {
-    if (!open) return;
-    setErr("");
+    let cancelled = false;
+    setLoading(true);
+    setLoadError("");
     api
       .aiConfig()
-      .then((c: AIConfig) => {
-        setProvider(c.provider || "openai");
-        setModel(c.model);
-        setBaseURL(c.baseURL);
-        setHasKey(c.hasKey);
+      .then((config) => {
+        if (cancelled) return;
+        setProvider(config.provider || "openai");
+        setModel(config.model);
+        setBaseURL(config.baseURL);
+        setHasKey(config.hasKey);
       })
-      .catch(() => {});
-  }, [open]);
-
-  if (!open) return null;
-
-  const save = async () => {
+      .catch((e) => {
+        if (!cancelled)
+          setLoadError(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [attempt]);
+  async function save(event: FormEvent) {
+    event.preventDefault();
+    if (loading || loadError || saving) return;
     setSaving(true);
-    setErr("");
+    setError("");
+    setNotice("");
     try {
       await api.setAIConfig({
         provider,
-        model,
-        baseURL,
+        model: model.trim(),
+        baseURL: baseURL.trim(),
         apiKey: apiKey || undefined,
       });
+      setHasKey(hasKey || !!apiKey);
       setApiKey("");
-      setHasKey(true);
+      setNotice("已保存，可在终端工具栏打开命令助手。");
     } catch (e) {
-      setErr(String(e instanceof Error ? e.message : e));
+      setError(e instanceof Error ? e.message : String(e));
     } finally {
       setSaving(false);
     }
-  };
-
+  }
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      onClick={onClose}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="ai-settings-title"
-        className="max-h-[90vh] w-[min(28rem,92%)] overflow-y-auto rounded-lg border border-slate-600 bg-slate-800 p-5 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
+    <Modal label="AI 设置" className="max-w-lg" onClose={onClose} busy={saving}>
+      <header className="modal-heading">
+        <div>
+          <h2>AI 设置</h2>
+          <p>生成命令建议，核对后自行粘贴执行。</p>
+        </div>
+        <button
+          type="button"
+          className="icon-button"
+          aria-label="关闭 AI 设置"
+          onClick={onClose}
+          disabled={saving}
+        >
+          <Icon name="close" />
+        </button>
+      </header>
+      <label className="form-label" htmlFor="ai-shortcut">
+        命令助手快捷键
+      </label>
+      <select
+        id="ai-shortcut"
+        className="form-field"
+        value={shortcut}
+        onChange={(e) => setCommandShortcut(e.target.value as CommandShortcut)}
       >
-        <h2
-          id="ai-settings-title"
-          className="mb-3 text-base font-semibold text-slate-100"
+        <option value="ctrl-shift-k">
+          Ctrl+Shift+K（保留 Shell 的 Ctrl+K）
+        </option>
+        <option value="ctrl-k">Ctrl+K（兼容旧习惯，占用 Shell 快捷键）</option>
+      </select>
+      <p className="mt-2 mb-5 text-xs leading-5 text-slate-400">
+        立即生效，保存在当前浏览器；切换不会重连终端。
+      </p>
+      <form
+        onSubmit={save}
+        onChange={() => {
+          setNotice("");
+          setError("");
+        }}
+      >
+        {loading && (
+          <p role="status" className="mb-3 text-sm text-slate-400">
+            正在读取模型配置…
+          </p>
+        )}
+        {loadError && (
+          <div role="alert" className="mb-4 text-sm text-rose-300">
+            配置读取失败：{loadError}
+            <button
+              type="button"
+              className="button-secondary ml-2"
+              onClick={() => setAttempt(attempt + 1)}
+            >
+              重新加载
+            </button>
+          </div>
+        )}
+        <fieldset
+          disabled={loading || !!loadError || saving}
+          className="space-y-4 border-t border-slate-700 pt-4"
         >
-          AI 设置
-        </h2>
-        <p className="mb-4 text-xs text-slate-400">
-          配置命令生成用的 LLM。API key 存在凭据库,不会回传前端。
-        </p>
-        <label
-          htmlFor="ai-shortcut"
-          className="mb-1 block text-xs text-slate-400"
-        >
-          命令助手快捷键
-        </label>
-        <select
-          id="ai-shortcut"
-          value={shortcut}
-          onChange={(e) =>
-            setCommandShortcut(e.target.value as CommandShortcut)
-          }
-          className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-slate-100"
-        >
-          <option value="ctrl-shift-k">
-            Ctrl+Shift+K（推荐，保留 Shell 的 Ctrl+K）
-          </option>
-          <option value="ctrl-k">
-            Ctrl+K（兼容旧习惯，占用 Shell 快捷键）
-          </option>
-        </select>
-        <p className="mb-4 mt-1 text-xs text-slate-400">
-          立即生效，保存在当前浏览器；切换快捷键不会重连终端。
-        </p>
-        <label className="mb-1 block text-xs text-slate-400">Provider</label>
-        <select
-          value={provider}
-          onChange={(e) => setProvider(e.target.value)}
-          className="mb-3 w-full rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-slate-100"
-        >
-          <option value="openai">
-            OpenAI 兼容 (OpenAI / OpenRouter / DeepSeek)
-          </option>
-          <option value="anthropic">Anthropic (Claude)</option>
-        </select>
-
-        <label className="mb-1 block text-xs text-slate-400">Model</label>
-        <input
-          value={model}
-          onChange={(e) => setModel(e.target.value)}
-          placeholder="gpt-4o-mini / claude-3-5-haiku-latest"
-          className="mb-3 w-full rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-slate-100"
-        />
-
-        <label className="mb-1 block text-xs text-slate-400">
-          Base URL (可选,留空用默认)
-        </label>
-        <input
-          value={baseURL}
-          onChange={(e) => setBaseURL(e.target.value)}
-          placeholder="https://api.openai.com/v1"
-          className="mb-3 w-full rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-slate-100"
-        />
-
-        <label className="mb-1 block text-xs text-slate-400">
-          API Key{hasKey ? " (已设置,留空保持不变)" : ""}
-        </label>
-        <input
-          type="password"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          placeholder={hasKey ? "••••••••" : "sk-…"}
-          className="mb-4 w-full rounded border border-slate-600 bg-slate-900 px-2 py-1.5 text-sm text-slate-100"
-        />
-
-        {err && <p className="mb-3 text-xs text-red-400">{err}</p>}
-
-        <div className="flex justify-end gap-2">
+          <label className="block">
+            <span className="form-label">模型服务</span>
+            <select
+              className="form-field"
+              value={provider}
+              onChange={(e) => setProvider(e.target.value)}
+            >
+              <option value="openai">
+                OpenAI 兼容（OpenAI / OpenRouter / DeepSeek）
+              </option>
+              <option value="anthropic">Anthropic（Claude）</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="form-label">模型 ID</span>
+            <input
+              className="form-field"
+              value={model}
+              required
+              onChange={(e) => setModel(e.target.value)}
+              placeholder="与模型服务商提供的 ID 一致"
+            />
+          </label>
+          <label className="block">
+            <span className="form-label">服务地址（选填）</span>
+            <input
+              className="form-field"
+              value={baseURL}
+              type="url"
+              onChange={(e) => setBaseURL(e.target.value)}
+              placeholder="留空使用默认地址"
+            />
+          </label>
+          <label className="block">
+            <span className="form-label">
+              API Key{hasKey ? "（已设置，留空保持不变）" : ""}
+            </span>
+            <input
+              className="form-field"
+              type="password"
+              value={apiKey}
+              autoComplete="new-password"
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder={hasKey ? "已保存在凭据库" : "输入 API Key"}
+            />
+          </label>
+          <p className="text-xs leading-5 text-slate-400">
+            密钥保存在工作台凭据库，不会回传前端。终端内容仅在生成时勾选后发送给模型。
+          </p>
+        </fieldset>
+        {error && (
+          <p role="alert" className="mt-4 text-sm text-rose-300">
+            {error}
+          </p>
+        )}
+        {notice && (
+          <p role="status" className="mt-4 text-sm text-emerald-300">
+            {notice}
+          </p>
+        )}
+        <footer className="modal-actions">
           <button
+            type="button"
+            className="button-secondary"
             onClick={onClose}
-            className="rounded border border-slate-600 px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-700"
+            disabled={saving}
           >
             关闭
           </button>
           <button
-            onClick={save}
-            disabled={saving}
-            className="rounded bg-emerald-600 px-3 py-1.5 text-sm text-white hover:bg-emerald-500 disabled:opacity-40"
+            className="button-primary"
+            disabled={loading || !!loadError || saving}
           >
             {saving ? "保存中…" : "保存"}
           </button>
-        </div>
-      </div>
-    </div>
+        </footer>
+      </form>
+    </Modal>
   );
 }

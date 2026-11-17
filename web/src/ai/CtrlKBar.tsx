@@ -1,3 +1,4 @@
+import { Modal } from "../components/Modal";
 import { useEffect, useRef, useState } from "react";
 import type { CommandSuggestion } from "../api/client";
 import { Icon } from "../components/Icon";
@@ -32,11 +33,7 @@ export function CtrlKBar({
   useEffect(() => setCopy(""), [suggestion]);
   if (!open) return null;
   return (
-    <div
-      role="dialog"
-      aria-label="AI 命令助手"
-      className="absolute left-1/2 top-3 z-30 max-h-[90%] w-[min(40rem,94%)] -translate-x-1/2 overflow-auto rounded-xl border border-slate-600 bg-[var(--surface-panel)] p-4 shadow-2xl"
-    >
+    <Modal label="AI 命令助手" className="max-w-2xl" onClose={onClose}>
       <div className="mb-3 flex items-center justify-between">
         <span className="flex items-center gap-2 text-sm font-semibold">
           <Icon name="sparkles" size={16} />
@@ -143,6 +140,6 @@ export function CtrlKBar({
           </div>
         </div>
       )}
-    </div>
+    </Modal>
   );
 }

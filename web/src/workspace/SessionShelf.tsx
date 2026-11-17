@@ -1,3 +1,4 @@
+import { Modal } from "../components/Modal";
 import { useState } from "react";
 import { api } from "../api/client";
 import { useAppStore } from "../store";
@@ -11,20 +12,21 @@ export function SessionShelf({ onClose }: { onClose: () => void }) {
     setActive,
     refresh,
     reconnectClosedSession,
-    setError,
   } = useAppStore();
   const [ending, setEnding] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [error, setLocalError] = useState("");
   const target = sessions.find((s) => s.id === ending);
   async function end() {
     if (!ending) return;
     setBusy(true);
+    setLocalError("");
     try {
       await api.closeSession(ending);
       await refresh();
       setEnding(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setLocalError(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
     }
@@ -121,50 +123,57 @@ export function SessionShelf({ onClose }: { onClose: () => void }) {
         {recoveries.length === 0 && <RecoveryList onOpen={onClose} />}
       </div>
       {target && (
-        <div className="dialog-backdrop">
-          <div
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby="end-title"
-            className="dialog-card max-w-md"
-          >
-            <h2 id="end-title" className="text-lg font-semibold">
-              {target.state === "active"
-                ? target.recoveryId
-                  ? "断开并保留远端终端？"
-                  : "结束 SSH 会话？"
-                : "移除已结束的会话？"}
-            </h2>
-            <p className="mt-3 text-sm leading-6 text-slate-300">
-              {target.label} · {target.target}
+        <Modal
+          onClose={() => {
+            setLocalError("");
+            setEnding(null);
+          }}
+          busy={busy}
+          kind="alertdialog"
+          labelledBy="end-title"
+          className="max-w-md"
+        >
+          <h2 id="end-title" className="text-lg font-semibold">
+            {target.state === "active"
+              ? target.recoveryId
+                ? "断开并保留远端终端？"
+                : "结束 SSH 会话？"
+              : "移除已结束的会话？"}
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-slate-300">
+            {target.label} · {target.target}
+          </p>
+          <p className="mt-2 text-sm text-slate-400">
+            {target.state === "active"
+              ? target.recoveryId
+                ? "断开工作台到主机的连接，远端 tmux 任务继续运行。稍后可从会话库恢复；工作台监控在断开期间暂停。"
+                : "所有设备与此会话的连接将结束，依赖该终端的远端任务可能中断。只想收起窗口时，请关闭标签。"
+              : "该会话的终端输出将从工作台移除。保存的主机配置仍然保留。"}
+          </p>
+          {error && (
+            <p role="alert" className="mt-3 text-sm text-rose-300">
+              {error}
             </p>
-            <p className="mt-2 text-sm text-slate-400">
-              {target.state === "active"
-                ? target.recoveryId
-                  ? "断开工作台到主机的连接，远端 tmux 任务继续运行。稍后可从会话库恢复；工作台监控在断开期间暂停。"
-                  : "所有设备与此会话的连接将结束，依赖该终端的远端任务可能中断。只想收起窗口时，请关闭标签。"
-                : "该会话的终端输出将从工作台移除。保存的主机配置仍然保留。"}
-            </p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                className="button-secondary"
-                disabled={busy}
-                onClick={() => setEnding(null)}
-              >
-                取消
-              </button>
-              <button className="button-danger" disabled={busy} onClick={end}>
-                {busy
-                  ? "处理中…"
-                  : target.state === "active"
-                    ? target.recoveryId
-                      ? "断开并保留"
-                      : "结束会话"
-                    : "移除记录"}
-              </button>
-            </div>
+          )}
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              className="button-secondary"
+              disabled={busy}
+              onClick={() => setEnding(null)}
+            >
+              取消
+            </button>
+            <button className="button-danger" disabled={busy} onClick={end}>
+              {busy
+                ? "处理中…"
+                : target.state === "active"
+                  ? target.recoveryId
+                    ? "断开并保留"
+                    : "结束会话"
+                  : "移除记录"}
+            </button>
           </div>
-        </div>
+        </Modal>
       )}
     </section>
   );

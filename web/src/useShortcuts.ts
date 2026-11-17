@@ -17,6 +17,7 @@ export function useShortcuts(): void {
       // input through a hidden textarea ("xterm-helper-textarea"), which is
       // the normal state while using the app. Excluding all textareas would
       // disable these shortcuts exactly when they are wanted.
+      if (e.isComposing || document.querySelector("dialog[open]")) return;
       const el = document.activeElement;
       const isTerminalInput =
         el instanceof HTMLTextAreaElement &&

@@ -1,7 +1,16 @@
 const { test } = require("node:test"),
   assert = require("node:assert/strict");
 const React = require("react"),
-  { create, act } = require("react-test-renderer");
+  { create: render, act } = require("react-test-renderer");
+function create(element, options = {}) {
+  return render(element, {
+    ...options,
+    createNodeMock(node) {
+      if (node.type === "dialog") return { showModal() {}, close() {} };
+      return options.createNodeMock?.(node) ?? null;
+    },
+  });
+}
 const { fixture } = require("./ui-helper.cjs");
 const text = (tree) => JSON.stringify(tree.toJSON());
 const button = (tree, label) =>

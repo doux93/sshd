@@ -1,3 +1,4 @@
+import { Modal } from "./components/Modal";
 import {
   useEffect,
   useRef,
@@ -174,13 +175,14 @@ export function NodeDialog() {
   }
   const input = "form-field";
   return (
-    <div className="dialog-backdrop">
+    <Modal
+      labelledBy="node-title"
+      className="max-w-xl"
+      onClose={close}
+      busy={busy === "save"}
+    >
       <form
         ref={form}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="node-title"
-        className="dialog-card max-w-xl"
         onSubmit={save}
         onChange={() => {
           generation.current++;
@@ -594,6 +596,6 @@ export function NodeDialog() {
           </button>
         </div>
       </form>
-    </div>
+    </Modal>
   );
 }

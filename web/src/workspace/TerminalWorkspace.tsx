@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAppStore } from "../store";
-import { TerminalView } from "../terminal/TerminalView";
+import { TerminalView, type TerminalActions } from "../terminal/TerminalView";
 import { readPreference, writePreference } from "./preferences";
 import { Icon } from "../components/Icon";
 import { useCommandShortcut, shortcutLabel } from "../ai/shortcut";
@@ -8,6 +8,8 @@ import { useCommandShortcut, shortcutLabel } from "../ai/shortcut";
 export function TerminalWorkspace() {
   const shortcut = useCommandShortcut();
   const { sessions, openIds, activeId, setActive } = useAppStore();
+  const actions = useRef(new Map<string, TerminalActions>());
+  const active = sessions.find((s) => s.id === activeId);
   const [split, setSplit] = useState(false);
   const [stacked, setStacked] = useState(
     () => readPreference<unknown>("layout.stacked", false) === true,
@@ -48,7 +50,51 @@ export function TerminalWorkspace() {
   }
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex h-8 shrink-0 items-center gap-2 border-b border-slate-800 px-2">
+      <div className="terminal-toolbar">
+        <div
+          className="terminal-context"
+          title={`${active?.target ?? ""}${active?.cwd ? " · " + active.cwd : ""}`}
+        >
+          <span className="truncate font-mono text-xs text-slate-300">
+            {active?.target}
+          </span>
+          <span className="truncate text-[11px] text-slate-400">
+            {active?.state === "closed"
+              ? "连接已断开"
+              : active?.recoveryId
+                ? "tmux 保活"
+                : active?.cwd || "SSH 终端"}
+          </span>
+        </div>
+        {active?.state === "closed" && active.nodeId && (
+          <button
+            className="toolbar-button text-amber-300"
+            onClick={() =>
+              useAppStore.getState().reconnectClosedSession(active.id)
+            }
+          >
+            重新连接
+          </button>
+        )}
+        <button
+          className="toolbar-button"
+          aria-label="搜索终端"
+          title="搜索终端输出（Ctrl+Shift+F）"
+          onClick={() => activeId && actions.current.get(activeId)?.search()}
+        >
+          <Icon name="search" size={15} />
+          <span className="terminal-action-label">搜索</span>
+        </button>
+        <button
+          className="toolbar-button"
+          aria-label="命令助手"
+          title={`命令助手（${shortcutLabel(shortcut)}）`}
+          disabled={!active?.nodeId || active.state !== "active"}
+          onClick={() => activeId && actions.current.get(activeId)?.assistant()}
+        >
+          <Icon name="sparkles" size={15} />
+          <span className="terminal-action-label">命令助手</span>
+        </button>
         <button
           className={`toolbar-button ${split ? "selected" : ""}`}
           disabled={!activeId || open.length < 2}
@@ -73,11 +119,6 @@ export function TerminalWorkspace() {
             {stacked ? "左右排列" : "上下排列"}
           </button>
         )}
-        <span className="ml-auto truncate text-[11px] text-slate-500">
-          {split
-            ? "蓝线标记当前终端 · 点击标签可替换当前窗格"
-            : `Alt+1…9 切换会话 · ${shortcutLabel(shortcut)} 命令助手`}
-        </span>
       </div>
       <div
         className={
@@ -114,6 +155,10 @@ export function TerminalWorkspace() {
               )}
               <div className="min-h-0 flex-1 p-2">
                 <TerminalView
+                  ref={(value) => {
+                    if (value) actions.current.set(id, value);
+                    else actions.current.delete(id);
+                  }}
                   sessionId={id}
                   nodeId={session.nodeId}
                   readOnly={session.state === "closed"}

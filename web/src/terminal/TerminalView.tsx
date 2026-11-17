@@ -1,7 +1,15 @@
 // xterm.js wrapper bound to one session via the shared WebSocket.
 // Mount = attach (server replays the ring buffer), unmount = detach
 // (the server-side session keeps running).
-import { useEffect, useRef, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
+import { SearchAddon } from "@xterm/addon-search";
+import { TerminalSearch } from "./TerminalSearch";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
@@ -23,27 +31,73 @@ import { matchesCommandShortcut } from "../ai/shortcut";
 
 const encoder = new TextEncoder();
 
-export function TerminalView({
-  sessionId,
-  sizeMode,
-  nodeId,
-  readOnly: requestedReadOnly = false,
-  focusOnMount = true,
-}: {
-  sessionId: string;
-  nodeId?: string;
-  readOnly?: boolean;
-  focusOnMount?: boolean;
-  /**
-   * "passive" makes this view render at the PTY's geometry instead of its
-   * own, so it never reflows a terminal another client is using. The mobile
-   * layout (M9) passes it explicitly; do not infer it from a media query —
-   * touchscreen desktops report a coarse pointer and would be misdetected.
-   */
-  sizeMode?: SizeMode;
-}) {
+export interface TerminalActions {
+  search(): void;
+  assistant(): void;
+}
+
+export const TerminalView = forwardRef<
+  TerminalActions,
+  {
+    sessionId: string;
+    nodeId?: string;
+    readOnly?: boolean;
+    focusOnMount?: boolean;
+    sizeMode?: SizeMode;
+  }
+>(function TerminalView(
+  {
+    sessionId,
+    sizeMode,
+    nodeId,
+    readOnly: requestedReadOnly = false,
+    focusOnMount = true,
+  },
+  ref,
+) {
   const theme = useTheme();
   const termRef = useRef<Terminal | null>(null);
+  const searchRef = useRef<SearchAddon | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [searchResult, setSearchResult] = useState({
+    resultIndex: -1,
+    resultCount: 0,
+  });
+  function openSearch() {
+    setQuery(termRef.current?.getSelection() || "");
+    setSearchOpen(true);
+  }
+  function closeSearch() {
+    setSearchOpen(false);
+    searchRef.current?.clearDecorations();
+    termRef.current?.focus();
+  }
+  function find(previous = false, incremental = false) {
+    const addon = searchRef.current;
+    if (!addon) return;
+    if (!query) {
+      addon.clearDecorations();
+      setSearchResult({ resultIndex: -1, resultCount: 0 });
+      return;
+    }
+    const options = {
+      incremental,
+      decorations: {
+        matchBackground: theme === "light" ? "#fef3c7" : "#614a1c",
+        matchBorder: "#b98b13",
+        matchOverviewRuler: "#d97706",
+        activeMatchBackground: theme === "light" ? "#bae6fd" : "#155e75",
+        activeMatchBorder: "#0284c7",
+        activeMatchColorOverviewRuler: "#0284c7",
+      },
+    };
+    if (previous) addon.findPrevious(query, options);
+    else addon.findNext(query, options);
+  }
+  useEffect(() => {
+    if (searchOpen) find(false, true);
+  }, [query, searchOpen, theme]);
   useEffect(() => {
     if (termRef.current) termRef.current.options.theme = terminalTheme(theme);
   }, [theme]);
@@ -63,6 +117,16 @@ export function TerminalView({
   const [suggestion, setSuggestion] = useState<CommandSuggestion | null>(null);
   const requestGeneration = useRef(0);
 
+  function openAssistant() {
+    if (readOnly || !nodeId) return;
+    setSuggestion(null);
+    setCtrlkError("");
+    setCtrlkOpen(true);
+  }
+  useImperativeHandle(ref, () => ({
+    search: openSearch,
+    assistant: openAssistant,
+  }));
   const closeCtrlK = () => {
     requestGeneration.current++;
     setCtrlkLoading(false);
@@ -115,6 +179,10 @@ export function TerminalView({
     termRef.current = term;
     const fit = new FitAddon();
     term.loadAddon(fit);
+    const search = new SearchAddon();
+    term.loadAddon(search);
+    searchRef.current = search;
+    const searchResults = search.onDidChangeResults(setSearchResult);
     term.loadAddon(new WebLinksAddon());
     term.loadAddon(new Unicode11Addon());
     term.unicode.activeVersion = "11";
@@ -201,13 +269,22 @@ export function TerminalView({
     // Ctrl+= / Ctrl+- / Ctrl+0, intercepted before the bytes reach the shell.
     // preventDefault also stops the browser's own zoom on the same chord.
     term.attachCustomKeyEventHandler((e) => {
+      if (
+        !e.isComposing &&
+        e.type === "keydown" &&
+        e.ctrlKey &&
+        e.shiftKey &&
+        !e.altKey &&
+        !e.metaKey &&
+        e.code === "KeyF"
+      ) {
+        e.preventDefault();
+        if (!e.repeat) openSearch();
+        return false;
+      }
       if (matchesCommandShortcut(e)) {
         e.preventDefault();
-        if (!readOnly && !e.repeat) {
-          setSuggestion(null);
-          setCtrlkError("");
-          setCtrlkOpen(true);
-        }
+        if (!e.repeat) openAssistant();
         return false;
       }
       if (e.isComposing) return true;
@@ -239,6 +316,8 @@ export function TerminalView({
       onData.dispose();
       onBinary.dispose();
       wsClient.detach(channelId);
+      searchResults.dispose();
+      searchRef.current = null;
       termRef.current = null;
       term.dispose();
     };
@@ -246,6 +325,15 @@ export function TerminalView({
 
   return (
     <div className="relative h-full w-full">
+      {searchOpen && (
+        <TerminalSearch
+          query={query}
+          onQuery={setQuery}
+          result={searchResult}
+          onFind={find}
+          onClose={closeSearch}
+        />
+      )}
       <CtrlKBar
         open={ctrlkOpen}
         loading={ctrlkLoading}
@@ -263,4 +351,4 @@ export function TerminalView({
       />
     </div>
   );
-}
+});
