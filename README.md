@@ -10,7 +10,7 @@
 
 ![深色分屏工作台实际浏览器截图](docs/images/dark-split.png)
 
-![Windows 原生客户端连接 Ubuntu 22.04 后恢复终端，v0.3.1 实测](docs/images/windows-ubuntu-22.04-v0.3.1.png)
+![Windows 原生客户端连接 Ubuntu 22.04 后恢复终端，v0.3.2 实测](docs/images/windows-ubuntu-22.04-v0.3.2.png)
 
 ## 工作台怎么用
 

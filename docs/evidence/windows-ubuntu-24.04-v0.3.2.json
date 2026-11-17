@@ -1,0 +1,88 @@
+{
+  "release": "v0.3.2",
+  "packageSource": "verified workflow artifact",
+  "distribution": "Ubuntu-24.04",
+  "scope": "Native Windows executable -> WSL2 Ubuntu OpenSSH/tmux",
+  "checks": [
+    {
+      "name": "Isolated Ubuntu OpenSSH server and disposable login created",
+      "details": {
+        "distribution": "Ubuntu-24.04",
+        "osRelease": "ubuntu|24.04",
+        "openssh": "openssh-server\t1:9.6p1-3ubuntu13.20",
+        "tmux": "tmux 3.4"
+      }
+    },
+    {
+      "name": "Real host-key confirmation and wrong-password rejection; draft test creates no host/session"
+    },
+    {
+      "name": "Windows saved credential opens real Linux tmux shell and background job",
+      "details": {
+        "shellPID": "434",
+        "jobPID": "478"
+      }
+    },
+    {
+      "name": "Native Windows Chromium terminal keyboard and Ctrl+K reach Linux shell"
+    },
+    {
+      "name": "2 MiB SFTP browser upload, Linux-side hash, download and rename with Chinese/spaced filenames",
+      "details": {
+        "bytes": 2097152,
+        "sha256": "d2dbb6ad5633490ea5bbc943578c936fe6bd8b375183ce087a4efc8623b3c640"
+      }
+    },
+    {
+      "name": "Windows private-key path with Chinese characters/spaces authenticates to Linux"
+    },
+    {
+      "name": "Actual SSH TCP interruption and resume preserve shell PID, background job PID, environment and directory"
+    },
+    {
+      "name": "Force-killed Windows executable restarts on same database and retrieves saved credential; original Linux shell/job survive"
+    },
+    {
+      "name": "Browser finds recovered terminal after executable restart"
+    },
+    {
+      "name": "Remote termination requires confirmation, ends actual tmux session, and saved-host cleanup succeeds"
+    }
+  ],
+  "success": true,
+  "packageSHA256": "d4ab1fba6addf02a0434c39b546930f5e700f82a3c6971a6ece588efdf9909e6",
+  "executable": "sshx 0.3.2 (964852b346665f8cc1c81fc0e3b43b0c48aa35ba)",
+  "linux": "Linux 6.18.54.1-microsoft-standard-WSL2",
+  "osRelease": "ubuntu|24.04",
+  "openssh": "openssh-server\t1:9.6p1-3ubuntu13.20",
+  "tmux": "tmux 3.4",
+  "browserInput": {
+    "attached": 3,
+    "receivedBytes": 17450,
+    "sentBytes": 228,
+    "input": "\u001b]10;rgb:e2e2/e8e8/f0f0\u001b\\\u001b]11;rgb:1717/2121/2f2f\u001b\\echo SHOULD_NOT_EXECUTE\u001bOH\u000bprintf '\\nUI_SUM:%s\\n' \"$((17+25))\"\r\u001b]10;rgb:e2e2/e8e8/f0f0\u001b\\\u001b]11;rgb:1717/2121/2f2f\u001b\\",
+    "events": [
+      {
+        "event": "attached",
+        "ms": 861
+      },
+      {
+        "event": "keyboard-start",
+        "ms": 1051
+      },
+      {
+        "event": "attached",
+        "ms": 5164
+      },
+      {
+        "event": "attached",
+        "ms": 6252
+      }
+    ],
+    "focusBefore": "xterm-helper-textarea"
+  },
+  "workflowRun": "https://github.com/doux93/sshd/actions/runs/43997156861",
+  "acceptanceCommit": "964852b346665f8cc1c81fc0e3b43b0c48aa35ba",
+  "releaseURL": "https://github.com/doux93/sshd/releases/tag/v0.3.2",
+  "matchesPublishedWindowsPackage": true
+}

@@ -1,6 +1,47 @@
-# 验证记录 — 2026-11-16
+# 验证记录 — 2026-11-17
 
-0.3.2 发布准备：MCP HTTP 回归、24 项前端测试和生产构建已在本地通过；[Windows/Linux 完整验收](https://github.com/doux93/sshd/actions/runs/43995370330)已通过，每个平台 12 个有效浏览器场景成功，[Ubuntu 22.04、24.04 开发包实测](https://github.com/doux93/sshd/actions/runs/43995764071)分别通过全部 10 个阶段。22.04 首次运行在测试环境连通检查阶段失败，尚未进入产品连接流程；同提交单独重跑后通过。正式包复验结果待补充。下方 0.3.1 内容为上一正式版本的历史记录。
+当前正式版为 [v0.3.2](https://github.com/doux93/sshd/releases/tag/v0.3.2)，源码提交 `964852b346665f8cc1c81fc0e3b43b0c48aa35ba`。[Windows/Linux 完整检查与发布](https://github.com/doux93/sshd/actions/runs/43996693464)和 [Windows → Ubuntu 实测](https://github.com/doux93/sshd/actions/runs/43997156861)均成功。
+
+| 检查 | 结果 |
+|---|---|
+| Linux Go race 测试、Windows 原生 Go 测试 | 15 个有测试的包通过；含 MCP HTTP 错误响应与尾部请求拒绝回归 |
+| Go vet、Windows/Linux 构建及启动检查 | 通过 |
+| 前端测试与 TypeScript/Vite/PWA 构建 | 两个平台各 24 项测试通过，生产构建成功 |
+| Chromium 桌面及手机尺寸 | 两个平台各 12 个有效场景通过；各 8 个桌面/手机不适用组合按设计跳过 |
+| 发布包检查 | ZIP 完整性、4 个预期文件、VERSION、BUILD.txt、SHA-256 文件均正确；与 Release 资产哈希一致 |
+
+| 发布包 | SHA-256 |
+|---|---|
+| Windows amd64 | `d4ab1fba6addf02a0434c39b546930f5e700f82a3c6971a6ece588efdf9909e6` |
+| Linux amd64 | `7306f53343a907bc61fe33d273fafa2855a4bf1949b16d2f2960d663ca87b777` |
+
+## 本轮修复的实测证据
+
+- MCP：用正式 Linux 包实际启动 HTTP 服务，畸形 JSON 和尾部额外内容返回合法的 400 JSON；正常 ping 返回 200。Go HTTP 回归另验证拒绝畸形请求之前不执行工具，以及合法批量请求、通知和尾部空白。[HTTP 结果](evidence/mcp-http-v0.3.2.json)
+- 快捷键：浏览器确认默认 Ctrl+K 发出终端输入字节，Ctrl+Shift+K 打开助手且不发送输入；AI 设置可切换旧快捷键，立即生效、刷新后保留，设置变更不产生 attach/detach。[Windows 实际界面](images/ai-shortcut-v0.3.2.png)
+- 上传：真实浏览器刷新触发 beforeunload，取消后原上传队列仍在；取消退出登录后凭据仍有效；取消、失败重试、文件内容校验继续通过，全部完成后刷新不再提示。单元测试覆盖排队、传输、保存、失败和取消，以及卸载清理。
+- Windows 连接两版 Ubuntu 后，浏览器输入 Home、Ctrl+K 清除待执行命令，再执行计算命令，真实 Bash 输出正确；密码、中文私钥路径、2 MiB SFTP 内容校验、TCP 中断及强杀工作台后的原任务恢复均通过。
+
+| 远端系统 | OpenSSH 服务端 | tmux | 结果 | 证据 |
+|---|---|---|---|---|
+| Ubuntu 22.04 | 1:8.9p1-3ubuntu0.18 | tmux 3.2a | 10/10 通过 | [JSON](evidence/windows-ubuntu-22.04-v0.3.2.json) · [截图](images/windows-ubuntu-22.04-v0.3.2.png) |
+| Ubuntu 24.04 | 1:9.6p1-3ubuntu13.20 | tmux 3.4 | 10/10 通过 | [JSON](evidence/windows-ubuntu-24.04-v0.3.2.json) · [截图](images/windows-ubuntu-24.04-v0.3.2.png) |
+
+两个 Ubuntu 任务使用 Verify 生成的同一份 Windows ZIP，其 SHA-256 与正式 Release 完全一致，验收机未重新编译。
+
+## 验收过程与边界
+
+首次浏览器测试中，脚本在取消刷新后仍等待 load 事件，已修正为触发真实刷新并验证取消后的页面状态；另修复主机指纹确认的测试顺序依赖，以及主机侧栏按钮定位歧义。没有通过增加等待时间或忽略断言来放行。
+
+[开发包 Ubuntu 验收](https://github.com/doux93/sshd/actions/runs/43995764071)首次 22.04 运行停在 Windows 到 WSL 的连通检查，尚未进入产品连接流程；同提交单独重跑通过。上方结果来自正式包的独立复验。
+
+Windows 客户端使用 GitHub Windows Server 2025 + Chromium，Ubuntu 服务端位于 WSL2，运行真实 OpenSSH/SFTP/tmux。用户 Windows 10/11、实际服务器、睡眠唤醒、中文输入法、VPN/跳板及长期负载仍需实机验收。
+
+上传队列仍在页面内存中，不支持断点续传；继续离开会中断上传，强制结束浏览器或系统关机无法保证提醒。完整 VT 屏幕快照、Windows 托盘与代码签名、完整 MCP Streamable HTTP、真实手机推送仍未完成。
+
+---
+
+# v0.3.1 历史验证 — 2026-11-16
 
 本机环境：Linux amd64、Go 1.26.3、Node.js 24.22.1、npm 11.9.0。
 

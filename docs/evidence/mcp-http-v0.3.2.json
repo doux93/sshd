@@ -1,0 +1,44 @@
+{
+  "release": "v0.3.2",
+  "sourceCommit": "964852b346665f8cc1c81fc0e3b43b0c48aa35ba",
+  "packageSHA256": "7306f53343a907bc61fe33d273fafa2855a4bf1949b16d2f2960d663ca87b777",
+  "executable": "sshx 0.3.2 (964852b346665f8cc1c81fc0e3b43b0c48aa35ba)",
+  "testedAt": "2026-11-17T01:42:12.242223+00:00",
+  "environment": "local Linux process; exact GitHub Actions package matches published Release asset SHA-256",
+  "verifyWorkflowRun": "https://github.com/doux93/sshd/actions/runs/43996693464",
+  "success": true,
+  "checks": [
+    {
+      "name": "quoted decoder error",
+      "request": "{\"a\":1 \"b\":2}",
+      "status": 400,
+      "contentType": "application/json",
+      "response": {
+        "error": "invalid JSON: invalid character '\"' after object key:value pair"
+      },
+      "success": true
+    },
+    {
+      "name": "trailing JSON value",
+      "request": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"} {}",
+      "status": 400,
+      "contentType": "application/json",
+      "response": {
+        "error": "invalid JSON: expected a single JSON value"
+      },
+      "success": true
+    },
+    {
+      "name": "valid ping",
+      "request": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}",
+      "status": 200,
+      "contentType": "application/json",
+      "response": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "result": {}
+      },
+      "success": true
+    }
+  ]
+}
