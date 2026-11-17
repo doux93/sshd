@@ -6,7 +6,14 @@ function create(element, options = {}) {
   return render(element, {
     ...options,
     createNodeMock(node) {
-      if (node.type === "dialog") return { showModal() {}, close() {} };
+      if (node.type === "dialog")
+        return {
+          showModal() {},
+          close() {},
+          querySelector() {
+            return null;
+          },
+        };
       return options.createNodeMock?.(node) ?? null;
     },
   });

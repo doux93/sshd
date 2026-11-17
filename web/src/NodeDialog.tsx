@@ -218,6 +218,7 @@ export function NodeDialog() {
               value={name}
               required={isFolder}
               autoFocus
+              data-autofocus
               onChange={(e) => setName(e.target.value)}
               placeholder="例如：生产数据库"
             />

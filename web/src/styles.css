@@ -555,3 +555,12 @@ body {
 :root[data-theme="light"] .button-secondary:hover {
   background: #d5e1ef;
 }
+
+.modal-card.modal-danger {
+  border-color: var(--color-red-400);
+  background: var(--color-red-950);
+}
+a:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 2px;
+}

@@ -26,9 +26,7 @@ export function HostKeyDialog() {
       onClose={() => setHostKeyPrompt(null)}
       busy={busy}
       className={`max-w-md ${
-        hostKey.changed
-          ? "border-red-700 bg-red-950"
-          : "border-slate-600 bg-slate-900"
+        hostKey.changed ? "modal-danger" : "border-slate-600 bg-slate-900"
       }`}
     >
       <h2
@@ -62,6 +60,7 @@ export function HostKeyDialog() {
         <button
           disabled={busy}
           autoFocus
+          data-autofocus
           onClick={() => setHostKeyPrompt(null)}
           className="rounded-md px-4 py-2 text-sm text-slate-300 hover:text-slate-50"
         >

@@ -80,6 +80,7 @@ export function ConnectDialog() {
               value={host}
               onChange={(e) => setHost(e.target.value)}
               autoFocus
+              data-autofocus
               required
             />
             <input

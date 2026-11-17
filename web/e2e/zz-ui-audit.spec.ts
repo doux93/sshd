@@ -8,8 +8,9 @@ import {
   assertFits,
 } from "./fixtures";
 
-// These scenarios run after the original onboarding checks, which exercise
-// the initially empty workspace. Every scenario creates its own target.
+// A separate server isolates this suite from onboarding state and login limits.
+test.use({ serverGroup: "ui-audit" });
+
 test("terminal search and mouse assistant preserve input and fit laptop windows", async ({
   page,
   context,
@@ -121,6 +122,7 @@ test("modals keep focus, restore the trigger and report AI configuration failure
   await trigger.click();
   const form = page.getByRole("dialog", { name: "新建主机", exact: true });
   await expect(form).toBeVisible();
+  await expect(form.getByLabel("名称（选填）")).toBeFocused();
   await form.getByLabel("名称（选填）").fill("draft stays in modal");
   await form.getByRole("button", { name: "保存主机", exact: true }).focus();
   await page.keyboard.press("Tab");
@@ -232,13 +234,11 @@ test("file panel filters and keyboard navigation recover from a missing director
     panel.getByText("没有匹配的文件", { exact: true }),
   ).toBeVisible();
   await panel.getByLabel("筛选文件").fill("");
-  await page
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "中文 操作检查.txt",
-      mimeType: "text/plain",
-      buffer: Buffer.from("UI download contents"),
-    });
+  await page.locator("input[type=file]").setInputFiles({
+    name: "中文 操作检查.txt",
+    mimeType: "text/plain",
+    buffer: Buffer.from("UI download contents"),
+  });
   const queue = page.getByRole("complementary", { name: "上传队列" });
   await expect(queue.getByText("已完成", { exact: true })).toBeVisible();
   await queue.getByRole("button", { name: "收起上传队列" }).click();

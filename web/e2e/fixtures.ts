@@ -69,9 +69,12 @@ async function stop(child: ChildProcess) {
     child.kill("SIGTERM");
   });
 }
-export const test = base.extend<{}, { app: App }>({
+export const test = base.extend<{}, { app: App; serverGroup: string }>({
+  serverGroup: ["workbench", { scope: "worker", option: true }],
   app: [
-    async ({}, use) => {
+    async ({ serverGroup }, use) => {
+      // Separate suites use independent app processes and login rate limits.
+      void serverGroup;
       const dir = await mkdtemp(join(tmpdir(), "sshx-e2e-"));
       const processes: ChildProcess[] = [];
       const model = createServer((req, res) => {
