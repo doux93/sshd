@@ -129,6 +129,10 @@ test("modals keep focus, restore the trigger and report AI configuration failure
   expect(await form.evaluate((el) => el.contains(document.activeElement))).toBe(
     true,
   );
+  await page.keyboard.press("Shift+Tab");
+  await expect(
+    form.getByRole("button", { name: "保存主机", exact: true }),
+  ).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(form).toHaveCount(0);
   await expect(trigger).toBeFocused();

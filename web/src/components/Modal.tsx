@@ -35,6 +35,34 @@ export function Modal({
       aria-label={label}
       aria-labelledby={labelledBy}
       className={`modal-card ${className}`}
+      onKeyDown={(event) => {
+        if (event.key !== "Tab" || event.nativeEvent.isComposing) return;
+        const dialog = event.currentTarget;
+        if ((event.target as Element).closest("dialog") !== dialog) return;
+        const controls = Array.from(
+          dialog.querySelectorAll<HTMLElement>(
+            "button, input, select, textarea, a[href], [tabindex]",
+          ),
+        ).filter(
+          (element) =>
+            element.tabIndex >= 0 &&
+            !element.matches(":disabled") &&
+            element.getClientRects().length > 0,
+        );
+        const first = controls[0],
+          last = controls.at(-1);
+        if (!first || !last) {
+          event.preventDefault();
+          return;
+        }
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }}
       onCancel={(event) => {
         event.preventDefault();
         if (!busy) onClose();
