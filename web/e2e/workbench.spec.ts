@@ -56,7 +56,10 @@ test("desktop connection test, terminal persistence, reconnect and AI preview", 
   await loginAPI(context.request, app);
   await watchSockets(page);
   await page.goto(app.url);
-  await page.getByRole("button", { name: "新建主机", exact: true }).click();
+  await page
+    .getByRole("complementary")
+    .getByRole("button", { name: "新建主机", exact: true })
+    .click();
   await page.getByLabel("名称（选填）").fill("E2E primary");
   await page.getByLabel("主机地址", { exact: true }).fill("127.0.0.1");
   await page.getByLabel("端口", { exact: true }).fill(String(app.sshPort));
@@ -471,7 +474,10 @@ test("first-host errors explain authentication and save-and-connect opens the te
   test.skip(info.project.name !== "desktop", "Desktop onboarding flow");
   await loginAPI(context.request, app);
   await page.goto(app.url);
-  await page.getByRole("button", { name: "新建主机", exact: true }).click();
+  await page
+    .getByRole("complementary")
+    .getByRole("button", { name: "新建主机", exact: true })
+    .click();
   await page.getByLabel("名称（选填）").fill("Onboarding host");
   await page.getByLabel("主机地址", { exact: true }).fill("127.0.0.1");
   await page.getByLabel("端口", { exact: true }).fill(String(app.sshPort));
@@ -707,8 +713,8 @@ test("missing tmux gives an actionable error without leaving a recovery record",
   await loginAPI(context.request, app);
   await page.goto(app.url);
   await page
+    .getByRole("complementary")
     .getByRole("button", { name: "新建主机", exact: true })
-    .first()
     .click();
   await page.getByLabel("名称（选填）").fill("Tmux unavailable");
   await page.getByLabel("主机地址", { exact: true }).fill("127.0.0.1");
